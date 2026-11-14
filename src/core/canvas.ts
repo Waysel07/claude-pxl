@@ -265,7 +265,7 @@ export class Canvas {
     const rx = o.rx ?? r, wall = Math.max(1, o.wall ?? Math.round(r / 4)), lipW = Math.max(0, o.lipW ?? 1);
     const tilt = o.tilt ?? 0, depth = Math.round(o.depth ?? 0), dish = o.dish ?? 0;
     const n = Math.max(0, Math.floor(o.spokes ?? 5)), spokeW = o.spokeW ?? Math.max(1, r / 4), ang = ((o.angle ?? 0) * Math.PI) / 180;
-    const tire = this.color(o.tire), lip = this.color(o.lip), barrel = this.color(o.barrel ?? o.lip);
+    const tire = this.color(o.tire), lip = this.color(o.lip), barrel = this.color(o.barrel ?? o.lip), shine = o.shine ? this.color(o.shine) : null;
     const spoke = this.color(o.spoke ?? o.lip), gap = this.color(o.gap ?? o.tire), hub = this.color(o.hub ?? o.spoke ?? o.lip);
     const k = rx / r; // horizontal squash of everything round
     const lean = (y: number) => (tilt * -(y - cy)) / r;
@@ -280,7 +280,7 @@ export class Canvas {
         for (let s = Math.sign(depth); Math.abs(s) <= Math.abs(depth) && depth; s += Math.sign(depth)) if (rad(x, y, r, s) <= 1) { c = tire; break; }
         if (rad(x, y, r) <= 1) c = tire;
         if (rimR >= 1 && rad(x, y, rimR) <= 1) {
-          c = lip;
+          c = shine !== null && x - cx - lean(y) <= -rx * 0.25 && y <= cy + r * 0.2 ? shine : lip;   // light catches the upper-left of the lip
           const inner = rimR - lipW;
           if (inner >= 1 && rad(x, y, inner) <= 1) {
             c = barrel;

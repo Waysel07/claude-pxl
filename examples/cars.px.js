@@ -16,26 +16,30 @@ pal({ Y: "#8f0d22", Z: "#e2283c", 8: "#c9b987", 9: "#fff3c4" })   // tail lights
 ramps("gGhH", "tTu", "mMn", "YZ", "89")
 
 const kit = { glass: "gGhH", trim: "tTu", metal: "mMn", tail: "YZ", head: "89" }
-car("s13", { ...kit, body: "coupe", paint: "123456", camber: 2 })
-car("s13_rear", { ...kit, body: "coupe", paint: "abcdef", view: "rear", spoiler: true })
-car("hatch", { ...kit, body: "hatch", paint: "ABCDEF" })
-car("hatch_rear", { ...kit, body: "hatch", paint: "pqrsvw", view: "rear" })
-car("sedan", { ...kit, body: "sedan", paint: "PQRSVW", tyre: 0.26 })
-car("wagon", { ...kit, body: "wagon", paint: "ijlxyz", view: "rear", tyre: 0.26 })
-car("wedge", { ...kit, body: "wedge", paint: "abcdef", popups: true })
-car("kei", { ...kit, body: "kei", paint: "pqrsvw", tyre: 0.3 })
+car("s13", { ...kit, body: "coupe", paint: "123456", camber: 2, wheels: "mesh" })
+car("s13_rear", { ...kit, body: "coupe", paint: "abcdef", view: "rear", spoiler: true, tailStyle: "bar", exhaust: 2 })
+car("hatch", { ...kit, body: "hatch", paint: "ABCDEF", headStyle: "blocks", bumper: "body", tyre: 0.24 })
+car("hatch_rear", { ...kit, body: "hatch", paint: "pqrsvw", view: "rear", tailStyle: "blocks", tyre: 0.24 })
+car("sedan", { ...kit, body: "sedan", paint: "PQRSVW", headStyle: "round", quad: true, bumper: "chrome", chrome: true, wheels: "steel", tyre: 0.3 })
+car("wagon", { ...kit, body: "wagon", paint: "ijlxyz", view: "rear", tailStyle: "round", bumper: "chrome", chrome: true, wheels: "disc", tyre: 0.3 })
+car("wedge", { ...kit, body: "wedge", paint: "abcdef", popups: true, headStyle: "slim", bumper: "body", wheels: "split" })
+car("kei", { ...kit, body: "kei", paint: "pqrsvw", headStyle: "round", tyre: 0.3, wheels: "steel" })
 car("coupe_side", { ...kit, body: "coupe", paint: "123456", yaw: 0 })
 // Your own body: start from a preset and change what makes the car that car.
-car("shooting_brake", { ...kit, paint: "PQRSVW", camber: 1,
+car("shooting_brake", { ...kit, paint: "PQRSVW", camber: 1, tailStyle: "slim", view: "rear", bumper: "body", wheels: "mesh", exhaust: 2,
   body: { roof: [[0.33, 0.62], [0.415, 1], [0.86, 0.98], [0.97, 0.63]], bPillar: 0.64 } })
+// Bigger cars hold more: scale 1.5 for hero art.
+car("hero_wagon", { ...kit, scale: 1.5, body: "wagon", paint: "abcdef", view: "rear", tailStyle: "blocks", bumper: "chrome", chrome: true, wheels: "mesh", tyre: 0.3, k: "k" })
+car("hero_coupe", { ...kit, scale: 1.5, body: "coupe", paint: "ABCDEF", headStyle: "slim", bumper: "body", wheels: "mesh", camber: 2, k: "k" })
 
 sheet("garage", ["s13", "s13_rear", "hatch", "hatch_rear", "sedan", "wagon", "wedge", "kei", "coupe_side", "shooting_brake"], { cols: 2, pad: 6 })
 
 // The same cars lined up on a dark floor, for the gallery.
-scene("car_lineup", { w: 340, h: 250, bg: "u" },
+scene("car_lineup", { w: 510, h: 318, bg: "#9c8f84" },
+  stamp("hero_wagon", 12, 8), stamp("hero_coupe", 280, 14),
   (c) => {
-    const names = ["s13", "s13_rear", "hatch", "hatch_rear", "sedan", "wagon", "wedge", "kei", "coupe_side", "shooting_brake"]
-    names.forEach((n, i) => { const x = 8 + (i % 2) * 170, y = 6 + Math.floor(i / 2) * 49; c.rect(x - 4, y + 38, 162, 6, "T"); c.stamp(n, x, y + (n === "kei" ? -6 : 0)) })
+    const names = ["s13", "s13_rear", "hatch", "hatch_rear", "sedan", "wagon", "wedge", "kei", "shooting_brake"]
+    names.forEach((n, i) => c.stamp(n, 8 + (i % 3) * 168, 84 + Math.floor(i / 3) * 78 + (n === "kei" ? -8 : 0), { }))
   })
 
 // --- rainy night banner ------------------------------------------------------
