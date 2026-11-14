@@ -287,10 +287,44 @@ function finish(img: Img, def: AssetDef, pal: Palette, trace?: Trace): Img {
   }
   if (o.flip) step(`flip ${o.flip}`, () => img.flip(o.flip!));
   if (o.rot) step(`rot ${o.rot}`, () => img.rot(o.rot!));
-  if (o.outline) step(`outline ${o.outline}`, () => img.outline(solid(pal, o.outline!), false));
-  if (o.outline8) step(`outline8 ${o.outline8}`, () => img.outline(solid(pal, o.outline8!), true));
+  if (o.form) {
+    const fo = o.form === true ? {} : o.form;
+    step("form", () => {
+      const c = new Canvas(img, pal, NO_ASSETS);
+      c.form(fo);
+    });
+  }
+  const sel = o.selout === true ? 2 : o.selout || 0;
+  const tint = sel ? seloutPick(pal, sel) : undefined;
+  if (o.outline) step(`outline ${o.outline}`, () => img.outline(solid(pal, o.outline!), false, tint));
+  if (o.outline8) step(`outline8 ${o.outline8}`, () => img.outline(solid(pal, o.outline8!), true, tint));
   if (o.crop) step("crop", () => img.crop());
   return img;
+}
+
+const NO_ASSETS: Resolver = {
+  image() { throw new PxError("no assets here"); },
+  timeline: () => undefined,
+  candidates: () => [],
+};
+
+/**
+ * Selective outline: an outline pixel takes the color it touches most, stepped `steps` shades
+ * down its ramp. Colors off the ramps, or already at the dark end, keep the plain outline color.
+ */
+function seloutPick(pal: Palette, steps: number): (touching: Color[]) => Color | undefined {
+  const down = pal.stepMap(-1);
+  return (touching) => {
+    let best: Color | undefined, n = 0;
+    for (const c of touching) {
+      const k = touching.filter((v) => v === c).length;
+      if (k > n) { best = c; n = k; }
+    }
+    if (best === undefined) return undefined;
+    let c = best;
+    for (let i = 0; i < steps; i++) c = down.get(c) ?? c;
+    return c === best ? undefined : c;
+  };
 }
 
 function solid(pal: Palette, spec: string): Color {

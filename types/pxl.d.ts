@@ -23,6 +23,10 @@ declare global {
   interface PxAssetOpts {
     w?: number; h?: number; base?: string; mx?: boolean | "c"; my?: boolean | "c"; swap?: Record<string, PxColor>;
     flip?: "x" | "y" | "xy"; rot?: 90 | 180 | 270; outline?: PxColor; outline8?: PxColor; crop?: boolean; layers?: boolean;
+    /** Selective outline: outline pixels take the color they touch, n shades darker (true = 2). */
+    selout?: boolean | number;
+    /** Form shading after mirroring, before the outline. */
+    form?: boolean | PxForm;
   }
   interface PxSceneOpts extends PxAssetOpts { w: number; h: number; bg?: PxColor }
   interface PxAnimOpts extends PxAssetOpts { fps?: number; frames?: number; loop?: boolean }
@@ -32,6 +36,12 @@ declare global {
     shade?: boolean | number | Record<string, PxColor>; light?: boolean | number | Record<string, PxColor>;
   }
 
+  interface PxForm {
+    from?: "tl" | "t" | "tr" | "l" | "r" | "bl" | "b" | "br" | [number, number];
+    shape?: "dome" | "bevel"; w?: number; depth?: number; hi?: number; lo?: number;
+    bias?: number; soft?: number; on?: string; where?: PxRegion;
+  }
+  interface PxRamp { at?: number; shift?: number; contrast?: number }
   interface PxLamp { r?: number; color?: PxColor; power?: number; z?: number }
   interface PxBump { w?: number; depth?: number; on?: string; where?: PxRegion }
   type PxBumpShape = "dome" | "bevel" | "luma";
@@ -61,6 +71,9 @@ declare global {
     ring(cx: number, cy: number, r: number, c: PxColor): void;
     ellipse(cx: number, cy: number, rx: number, ry: number, c: PxColor, ring?: boolean): void;
     poly(points: number[], c: PxColor): void;
+    curve(points: number[], c: PxColor, width?: number): void;
+    blob(points: number[], c: PxColor): void;
+    form(opts?: PxForm): void;
     fill(x: number, y: number, c: PxColor): void;
     dither(x: number, y: number, w: number, h: number, c1: PxColor, c2: PxColor, density?: number): void;
     grad(x: number, y: number, w: number, h: number, colors: string | string[], dir?: "v" | "h", soft?: number): void;
@@ -84,6 +97,8 @@ declare global {
   function use(palette: "pico8" | "sweetie16" | "db16" | "endesga32" | "gray8" | (string | number)[]): void;
   function pal(keys: Record<string, string | number>): void;
   function ramps(...darkToLight: string[]): void;
+  /** Define hue-shifted shades around a color under these keys (dark -> light) and register the ramp. Returns the hex colors. */
+  function ramp(keys: string, color: PxColor, opts?: PxRamp): string[];
   function sprite(name: string, opts: PxAssetOpts, ...items: PxItem[]): void;
   function sprite(name: string, ...items: PxItem[]): void;
   function scene(name: string, opts: PxSceneOpts, ...items: PxItem[]): void;
@@ -109,6 +124,9 @@ declare global {
   function ring(cx: number, cy: number, r: number, c: PxColor): PxOp;
   function ellipse(cx: number, cy: number, rx: number, ry: number, c: PxColor, ring?: boolean): PxOp;
   function poly(points: number[], c: PxColor): PxOp;
+  function curve(points: number[], c: PxColor, width?: number): PxOp;
+  function blob(points: number[], c: PxColor): PxOp;
+  function form(opts?: PxForm): PxOp;
   function fill(x: number, y: number, c: PxColor): PxOp;
   function dither(x: number, y: number, w: number, h: number, c1: PxColor, c2: PxColor, density?: number): PxOp;
   function grad(x: number, y: number, w: number, h: number, colors: string | string[], dir?: "v" | "h", soft?: number): PxOp;

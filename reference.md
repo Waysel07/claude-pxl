@@ -15,6 +15,7 @@ Coordinates are 0-based from the top-left. Sizes are `w, h`. Colors are a single
 | `use("pico8")` | Built-in palette: `pico8` (default), `sweetie16`, `db16`, `endesga32`, `gray8`. Keys are index chars `0-9a-z`. |
 | `use(["#000", "#fff", ...])` | Custom list, keys `0-9a-zA-Z` by index. |
 | `pal({ k: "#1b1630", g: 11, h: "k" })` | Add/override single-char keys: hex, palette index, or copy of another key. `. _ # space` are reserved. |
+| `ramp("dDgGh", "#5aa64b", { at?, shift = 1, contrast = 1 })` | **Builds a hue-shifted ramp for you**: defines these keys as shades around the color (dark → light; the color sits at the middle key, or at index `at`) and registers the ramp. Shadows drift toward blue/violet, highlights toward yellow, with even lightness steps. `shift: 0` = plain darker/lighter, `contrast` spreads the steps. Returns the hex list. |
 | `ramps("kDdu", "kTtq")` | Light ramps, dark → light. `shade` steps a color left, `light` steps right. When a key is in several ramps, the first ramp wins. |
 
 Every asset keeps the palette that was active where it was defined, so files with different
@@ -54,11 +55,13 @@ sheet globs.
 | `mx: true` | Mirror the left half onto the right after all items. Inferred width doubles (write half a row). `mx: "c"`: odd width, shared center column. `my` likewise vertically. |
 | `swap: { g: "r" }` | Recolor after drawing. |
 | `flip: "x" \| "y" \| "xy"`, `rot: 90 \| 180 \| 270` | Transform. |
+| `form: true \| { ... }` | Form shading (see `form` under Texture and tone) over the whole sprite, after mirroring/flipping, so an `mx` sprite is still lit from one side. |
 | `outline: "k"` | 1px outline around opaque pixels; **grows the canvas 1px on every side**. `outline8` also fills diagonals. |
+| `selout: true \| n` | Selective outline (needs `outline`): each outline pixel takes the color it touches, stepped `n` shades down its ramp (true = 2). Colors off the ramps or already darkest keep the plain outline color. Softer, more finished than one flat dark line. |
 | `crop: true` | Trim to opaque bounds. |
 | `layers: true` | Also export each layer as `out/<sprites\|scenes>/<name>/<layer>.png`. |
 
-Post-processing order: mirror → swap → flip → rot → outline → crop.
+Post-processing order: mirror → swap → flip → rot → form → outline (+ selout) → crop.
 
 ### Layer options
 
@@ -84,6 +87,8 @@ Post-processing order: mirror → swap → flip → rot → outline → crop.
 | `circ(cx, cy, r, c)` · `ring(cx, cy, r, c)` | pixel-art circles; ring is a clean 1px border |
 | `ellipse(cx, cy, rx, ry, c, ring?)` | |
 | `poly([x0, y0, x1, y1, ...], c)` | filled; vertices on pixel corners (`[0,0, 4,0, 4,4, 0,4]` = `rect(0,0,4,4)`) |
+| `curve([x0, y0, x1, y1, ...], c, width?)` | smooth pixel-perfect stroke through the points (no doubled corner pixels): tails, tentacles, smiles, ropes. Repeat a point for a sharp corner |
+| `blob([x0, y0, x1, y1, ...], c)` | filled closed smooth shape through the points: bodies, heads, leaves, clouds, puddles. Like `poly` with rounded corners; repeat a point for a sharp one |
 | `fill(x, y, c)` | 4-connected flood fill |
 | `wire(x0, y0, x1, y1, sag, c, { hang?, every = 6, start?, ...placement })` | sagging cable; `hang` stamps an asset/group under it every `every` px (string lights) |
 | `text(x, y, "str", c, { scale = 1, gap = 1, lead = 1, align: "l"\|"c"\|"r", shadow? })` | built-in 3×5 font: A-Z 0-9 and common punctuation, `\n` for lines |
@@ -96,6 +101,26 @@ Post-processing order: mirror → swap → flip → rot → outline → crop.
 | `noise(x, y, w, h, "ab", density = 0.1, seed = 1, on?)` | deterministic speckle; `on: "g"` only touches those keys (`"*"` any opaque) |
 | `shade(where?, steps = 1, density = 1)` · `light(...)` | step colors along ramps inside a region |
 | `recolor({ a: "b" }, where?, density = 1)` | swap colors inside a region |
+| `form({ from = "tl", hi = 1, lo = 1, shape = "dome", on = "*", where, depth = 1, bias = 0, soft = 0, w = 2 })` | **volume shading, in palette**: see below |
+
+**`form`** reads the pixels drawn so far (those of `on` keys, inside `where`) as solid forms lit from
+`from` (`"tl" "t" "tr" "l" "r" "bl" "b" "br"` or `[dx, dy]`), and steps each pixel along its own
+ramp in clean bands: up to `hi` shades lighter facing the light, up to `lo` darker on the far side
+(`lo: 2` adds a core shadow). Draw flat base colors, then call it once:
+
+```js
+ramp("12345", "#5aa64b")
+sprite("ball", { w: 24, h: 24, outline: "k", selout: true }, circ(12, 12, 11, "3"), form({ lo: 2 }))
+```
+
+- `shape: "dome"` rounds every connected blob like a ball; `"bevel"` keeps a flat top and slopes
+  the edges over `w` px (crates, bricks, buttons, gems).
+- Each connected blob of the mask is its own form. Shade parts separately by putting them in their
+  own `layer`, by calling `form({ on: "..." })` per material, or by drawing a part after the call.
+- `bias` −1..1 moves the bands toward shadow/light, `depth` scales the relief (wider bands),
+  `soft` 0..1 dithers the band edges (default: crisp).
+- Colors that are in no ramp don't change. It needs ramps with room: a base color with shades on
+  both sides (`ramp()` puts the base in the middle).
 
 **Regions** (`where`, `clip`): `undefined` = everywhere, `[cx, cy, r]` circle, `[x, y, w, h]`
 rect, `[x0, y0, x1, y1, x2, y2, ...]` polygon, or `(x, y) => boolean`.
@@ -199,7 +224,8 @@ painting replay ends ("animate" toggle).
 ## CLI
 
 ```
-node <pxl>/bin/pxl.js build <file> [--out DIR] [--only a,b] [--scale N] [--no-preview]
+node <pxl>/bin/pxl.js build <file> [--out DIR] [--only a,b] [--scale N] [--no-preview] [--no-hints]
+node <pxl>/bin/pxl.js review <file> <name> [name...] [--scale N]
 node <pxl>/bin/pxl.js serve <file> [--port 4321] [--out DIR | --no-out] [--no-preview]
 node <pxl>/bin/pxl.js ascii <file> <name>
 node <pxl>/bin/pxl.js list  <file>
@@ -208,6 +234,14 @@ node <pxl>/bin/pxl.js list  <file>
 Outputs go to `<file dir>/out`: `sprites/<n>.png`, `scenes/<n>.png`, `<sheet>.png` + `<sheet>.json`
 (TexturePacker hash format: Phaser, Godot importers, ...), `_preview/<n>.png` (upscaled to
 ~768px, checkerboard behind transparency, pixel grid at scale ≥ 6 with every 8th line darker).
+
+`build` prints craft **hints** under a sprite when it finds stray single pixels, colors too close to
+tell apart, a large flat unshaded area, or ramps that are out of order, too close, or have no hue
+shift. They are suggestions, not errors (`--no-hints` silences them).
+
+`review` writes `_preview/<name>.review.png`: the asset without the grid on a dark and a light
+backdrop, in grayscale (do the values separate?), as a silhouette (is the shape readable?), at
+true 1× and 2× size, and its colors by use. It also prints the color counts and hints.
 
 `serve` opens a live viewer that rebuilds on save, follows the asset you edited and replays its
 painting steps (each top-level op, layer and post-processing step, with its file:line). It also

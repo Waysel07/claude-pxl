@@ -8,6 +8,8 @@ import {
   type SheetDef, type SheetOpts, type Timeline, isLayer, isOp,
 } from "./model.ts";
 import { Palette } from "./palette.ts";
+import { type RampOpts, makeRamp } from "./ramp.ts";
+import { toHex } from "./color.ts";
 import { Trace } from "./trace.ts";
 import { globRe, rng } from "./util.ts";
 
@@ -27,6 +29,8 @@ export const SIGNATURES: Record<string, string> = {
   circ: "cx:n cy:n r:n c:c",
   ring: "cx:n cy:n r:n c:c",
   poly: "points:a c:c",
+  curve: "points:a c:c ?width:n",
+  blob: "points:a c:c",
   fill: "x:n y:n c:c",
   dither: "x:n y:n w:n h:n c1:c c2:c ?density:n",
   grad: "x:n y:n w:n h:n colors:S ?dir:s soft:n",
@@ -34,6 +38,7 @@ export const SIGNATURES: Record<string, string> = {
   recolor: "map:o ?where:r density:n",
   shade: "?where:r steps:n density:n",
   light: "?where:r steps:n density:n",
+  form: "?opts:o",
   stamp: "name:s ?x:n y:n opts:o",
   tile: "name:s x:n y:n ?cols:n rows:n opts:o",
   pattern: "name:s x:n y:n w:n h:n ?opts:o",
@@ -50,18 +55,20 @@ export const SIGNATURES: Record<string, string> = {
   glow: "keys:S ?opts:o",
 };
 
+const FORM_OPTS = ["from", "shape", "w", "depth", "hi", "lo", "bias", "soft", "on", "where"];
 /** Allowed option keys of ops whose last argument is an options object. */
 const OP_OPTS: Record<string, string[]> = {
   lamp: ["r", "color", "power", "z"],
   bump: ["w", "depth", "on", "where"],
   lighting: ["cell", "ambient", "ambientColor", "sky", "skyColor", "skyReach", "block", "smooth", "emit", "shape", "relief", "skyDir"],
   glow: ["where", "r", "strength", "color", "bands", "ramp"],
+  form: FORM_OPTS,
 };
 
 const ASSET_OPTS: Record<AssetKind, string[]> = {
-  sprite: ["w", "h", "base", "mx", "my", "swap", "flip", "rot", "outline", "outline8", "crop", "layers"],
-  scene: ["w", "h", "bg", "mx", "my", "swap", "flip", "rot", "outline", "outline8", "crop", "layers"],
-  anim: ["w", "h", "base", "mx", "my", "swap", "flip", "rot", "outline", "outline8", "crop", "layers", "fps", "frames", "loop"],
+  sprite: ["w", "h", "base", "mx", "my", "swap", "flip", "rot", "outline", "outline8", "selout", "form", "crop", "layers"],
+  scene: ["w", "h", "bg", "mx", "my", "swap", "flip", "rot", "outline", "outline8", "selout", "form", "crop", "layers"],
+  anim: ["w", "h", "base", "mx", "my", "swap", "flip", "rot", "outline", "outline8", "selout", "form", "crop", "layers", "fps", "frames", "loop"],
 };
 const FRAME_OPTS = ["ms", "hold"];
 /** Longest loop a combined timeline may have (ms); longer ones are cut. */
@@ -188,6 +195,8 @@ export class Project implements BuildCtx {
       if (prev) throw new PxError(`'${name}' is already defined at ${prev.loc}`, loc);
       const opts = (isPlainObject(rest[0]) ? rest.shift() : {}) as AssetOpts;
       checkKeys(`${kind} '${name}'`, opts, ASSET_OPTS[kind], loc);
+      if (isPlainObject(opts.form)) checkKeys(`${kind} '${name}' form`, opts.form, FORM_OPTS, loc);
+      if (opts.selout && !opts.outline && !opts.outline8) throw new PxError(`${kind} '${name}': selout needs an outline color too (outline: "k")`, loc);
       const items = checkItems(`${kind} '${name}'`, rest, loc);
       this.assets.set(name, { kind, name, opts, items, pal: this.pal, loc });
       this.order.push(name);
@@ -203,6 +212,21 @@ export class Project implements BuildCtx {
     };
     env.ramps = (...ramps: string[]) => {
       try { this.pal = this.pal.withRamps(ramps); } catch (e) { throw wrap(e).within("ramps", this.callerLoc()); }
+    };
+    env.ramp = (keys: unknown, color: unknown, opts: RampOpts = {}): string[] => {
+      const loc = this.callerLoc();
+      try {
+        if (typeof keys !== "string" || [...keys].length < 2 || new Set(keys).size !== [...keys].length)
+          throw new PxError('ramp("dDmlL", "#5aa64b") needs a string of distinct keys, dark -> light');
+        if (typeof color !== "string") throw new PxError('ramp: the color must be "#hex" or an existing key');
+        if (!isPlainObject(opts)) throw new PxError("ramp: options must be an object");
+        checkKeys("ramp", opts, ["at", "shift", "contrast"]);
+        const base = this.pal.resolve(color);
+        if (base === null || base === 0) throw new PxError(`ramp: '${color}' is not a visible color`);
+        const ks = [...keys], hex = makeRamp(base, ks.length, opts).map(toHex);
+        this.pal = this.pal.extend(Object.fromEntries(ks.map((k, i) => [k, hex[i]]))).withRamps([keys]);
+        return hex;
+      } catch (e) { throw wrap(e).within("ramp", loc); }
     };
     env.sprite = (name: unknown, ...rest: unknown[]) => define("sprite", name, rest);
     env.anim = (name: unknown, ...rest: unknown[]) => define("anim", name, rest);

@@ -51,6 +51,10 @@ export interface AssetOpts {
   rot?: 90 | 180 | 270;
   outline?: string;
   outline8?: string;
+  /** Selective outline: outline pixels take the colour they touch, stepped this many shades darker (true = 2). */
+  selout?: boolean | number;
+  /** Form shading applied after mirroring/flipping, before the outline (true = defaults). */
+  form?: boolean | FormOpts;
   crop?: boolean;
   /** Also export each layer as its own PNG. */
   layers?: boolean;
@@ -62,6 +66,30 @@ export interface AssetOpts {
   frames?: number;
   /** anim: false = play once and hold the last frame (default true). */
   loop?: boolean;
+}
+
+/** Options of form(): in-palette volume shading. */
+export interface FormOpts {
+  /** Where the light comes from: "tl" (default), "t", "tr", "l", "r", "bl", "b", "br" or [dx, dy]. */
+  from?: string | [number, number];
+  /** "dome" (default): one rounded solid per connected blob. "bevel": flat top, edges slope over `w` px. */
+  shape?: "dome" | "bevel";
+  /** Bevel width in px (default 2). */
+  w?: number;
+  /** Relief strength (default 1): higher = wider light and shadow bands. */
+  depth?: number;
+  /** Shades lighter on the lit side (default 1; 0 = none). */
+  hi?: number;
+  /** Shades darker on the far side (default 1; 2 adds a core shadow). */
+  lo?: number;
+  /** -1..1: negative = more shadow, positive = more light. */
+  bias?: number;
+  /** 0..1: dither the band edges (default 0 = clean cel bands). */
+  soft?: number;
+  /** Keys that take part (default "*": every opaque pixel). */
+  on?: string;
+  /** Region limit. */
+  where?: Region;
 }
 
 export type AssetKind = "sprite" | "scene" | "anim";
