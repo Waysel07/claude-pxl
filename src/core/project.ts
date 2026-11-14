@@ -55,7 +55,7 @@ export const SIGNATURES: Record<string, string> = {
   glow: "keys:S ?opts:o",
 };
 
-const FORM_OPTS = ["from", "shape", "w", "depth", "hi", "lo", "bias", "soft", "on", "where"];
+const FORM_OPTS = ["from", "shape", "w", "depth", "hi", "lo", "bias", "soft", "bleed", "on", "where"];
 /** Allowed option keys of ops whose last argument is an options object. */
 const OP_OPTS: Record<string, string[]> = {
   lamp: ["r", "color", "power", "z"],
@@ -224,6 +224,8 @@ export class Project implements BuildCtx {
         const base = this.pal.resolve(color);
         if (base === null || base === 0) throw new PxError(`ramp: '${color}' is not a visible color`);
         const ks = [...keys], hex = makeRamp(base, ks.length, opts).map(toHex);
+        const taken = ks.filter((k) => this.pal.aliases.has(k));
+        if (taken.length) throw new PxError(`ramp("${keys}"): key${taken.length > 1 ? "s" : ""} '${taken.join("")}' already defined (by pal or another ramp); give the ramp fresh keys`);
         this.pal = this.pal.extend(Object.fromEntries(ks.map((k, i) => [k, hex[i]]))).withRamps([keys]);
         return hex;
       } catch (e) { throw wrap(e).within("ramp", loc); }

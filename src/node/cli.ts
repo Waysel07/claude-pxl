@@ -1,7 +1,7 @@
 // pxl command line.
 import { dirname, join, resolve } from "node:path";
-import { PxError, wrap } from "../core/errors.ts";
-import { ascii, review } from "../core/render.ts";
+import { PxError, didYouMean, wrap } from "../core/errors.ts";
+import { ascii, packSheet, review } from "../core/render.ts";
 import { lintImage } from "../core/lint.ts";
 import { toHex } from "../core/color.ts";
 import { loadProject } from "./load.ts";
@@ -96,17 +96,19 @@ export async function main(argv: string[]): Promise<number> {
         if (!a.rest.length) throw new PxError("review needs an asset name: pxl review <file> <name>");
         const p = loadProject(file);
         for (const name of a.rest) {
-          const def = p.assets.get(name);
-          if (!def) throw new PxError(`unknown asset '${name}'`);
-          const img = p.image(name), rev = def.pal.reverse();
+          const def = p.assets.get(name), sh = p.sheets.find((s) => s.name === name);
+          if (!def && !sh) throw new PxError(`unknown asset or sheet '${name}'${didYouMean(name, [...p.order, ...p.sheets.map((s) => s.name)])}`);
+          const kind = def?.kind ?? "sheet", pal = def?.pal ?? p.pal;
+          const img = def ? p.image(name) : packSheet(p.sheetNames(sh!).map((n) => ({ name: n, img: p.image(n) })), sh!.opts.cols, sh!.opts.pad ?? 1).sheet;
+          const rev = pal.reverse();
           const path = join(outDir, "_preview", name + ".review.png");
           writePng(path, review(img, a.scale));
           const count = new Map<number, number>();
           for (const c of img.data) if (c) count.set(c, (count.get(c) ?? 0) + 1);
           const cols = [...count.entries()].sort((x, y) => y[1] - x[1]);
-          console.log(`${def.kind} ${name} ${img.w}x${img.h}, ${cols.length} colors -> ${path}`);
+          console.log(`${kind} ${name} ${img.w}x${img.h}, ${cols.length} colors -> ${path}`);
           console.log("  " + cols.slice(0, 24).map(([c, n]) => `${rev.get(c) ?? toHex(c)}:${n}`).join(" ") + (cols.length > 24 ? " …" : ""));
-          const hints = lintImage(img, def.pal);
+          const hints = def ? lintImage(img, pal) : [];
           for (const h of hints) console.log(`  hint: ${h}`);
           if (!hints.length) console.log("  no hints");
         }

@@ -15,7 +15,7 @@ Coordinates are 0-based from the top-left. Sizes are `w, h`. Colors are a single
 | `use("pico8")` | Built-in palette: `pico8` (default), `sweetie16`, `db16`, `endesga32`, `gray8`. Keys are index chars `0-9a-z`. |
 | `use(["#000", "#fff", ...])` | Custom list, keys `0-9a-zA-Z` by index. |
 | `pal({ k: "#1b1630", g: 11, h: "k" })` | Add/override single-char keys: hex, palette index, or copy of another key. `. _ # space` are reserved. |
-| `ramp("dDgGh", "#5aa64b", { at?, shift = 1, contrast = 1 })` | **Builds a hue-shifted ramp for you**: defines these keys as shades around the color (dark → light; the color sits at the middle key, or at index `at`) and registers the ramp. Shadows drift toward blue/violet, highlights toward yellow, with even lightness steps. `shift: 0` = plain darker/lighter, `contrast` spreads the steps. Returns the hex list. |
+| `ramp("dDgGh", "#5aa64b", { at?, shift = 1, contrast = 1 })` | **Builds a hue-shifted ramp for you**: defines these keys as shades around the color (dark → light; **the color you give is the middle key** (index `floor(n/2)`), or index `at` — use `at` near the top for pale colors like white/cream and at 0–1 for near-blacks). Keys must be new and registers the ramp. Shadows drift toward blue/violet, highlights toward yellow, with even lightness steps. `shift: 0` = plain darker/lighter, `contrast` spreads the steps. Returns the hex list. |
 | `ramps("kDdu", "kTtq")` | Light ramps, dark → light. `shade` steps a color left, `light` steps right. When a key is in several ramps, the first ramp wins. |
 
 Every asset keeps the palette that was active where it was defined, so files with different
@@ -57,7 +57,7 @@ sheet globs.
 | `flip: "x" \| "y" \| "xy"`, `rot: 90 \| 180 \| 270` | Transform. |
 | `form: true \| { ... }` | Form shading (see `form` under Texture and tone) over the whole sprite, after mirroring/flipping, so an `mx` sprite is still lit from one side. |
 | `outline: "k"` | 1px outline around opaque pixels; **grows the canvas 1px on every side**. `outline8` also fills diagonals. |
-| `selout: true \| n` | Selective outline (needs `outline`): each outline pixel takes the color it touches, stepped `n` shades down its ramp (true = 2). Colors off the ramps or already darkest keep the plain outline color. Softer, more finished than one flat dark line. |
+| `selout: true \| n` | Selective outline (needs `outline`): each outline pixel takes the color it touches, stepped `n` shades down its ramp (true = 2), never lighter than the ramp's second-darkest. Colors off the ramps or too dark to step keep the plain outline color. Softer, more finished than one flat dark line. |
 | `crop: true` | Trim to opaque bounds. |
 | `layers: true` | Also export each layer as `out/<sprites\|scenes>/<name>/<layer>.png`. |
 
@@ -119,8 +119,11 @@ sprite("ball", { w: 24, h: 24, outline: "k", selout: true }, circ(12, 12, 11, "3
   own `layer`, by calling `form({ on: "..." })` per material, or by drawing a part after the call.
 - `bias` −1..1 moves the bands toward shadow/light, `depth` scales the relief (wider bands),
   `soft` 0..1 dithers the band edges (default: crisp).
+- In a sprite the canvas border counts as an edge of the form; in a scene it doesn't, so hills
+  and ground that run off the picture shade only along their real silhouette (`bleed: true/false`
+  overrides either way, e.g. `bleed: true` for seamless tiles).
 - Colors that are in no ramp don't change. It needs ramps with room: a base color with shades on
-  both sides (`ramp()` puts the base in the middle).
+  both sides (`ramp()` leaves room by default).
 
 **Regions** (`where`, `clip`): `undefined` = everywhere, `[cx, cy, r]` circle, `[x, y, w, h]`
 rect, `[x0, y0, x1, y1, x2, y2, ...]` polygon, or `(x, y) => boolean`.

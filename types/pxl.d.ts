@@ -39,7 +39,7 @@ declare global {
   interface PxForm {
     from?: "tl" | "t" | "tr" | "l" | "r" | "bl" | "b" | "br" | [number, number];
     shape?: "dome" | "bevel"; w?: number; depth?: number; hi?: number; lo?: number;
-    bias?: number; soft?: number; on?: string; where?: PxRegion;
+    bias?: number; soft?: number; bleed?: boolean; on?: string; where?: PxRegion;
   }
   interface PxRamp { at?: number; shift?: number; contrast?: number }
   interface PxLamp { r?: number; color?: PxColor; power?: number; z?: number }

@@ -40,6 +40,8 @@ export class Canvas {
   /** Inside an anim: the frame being drawn and the frame count (for procedural animation). */
   frame = 0;
   frames = 1;
+  /** Default for form({ bleed }): true while building a scene. */
+  bleed = false;
   /** Building an anim (frame() items allowed). */
   inAnim = false;
   /** Composite below the current layer (absolute coords), for `below` masks. */
@@ -342,7 +344,7 @@ export class Canvas {
         const cx = x - this.ox, cy = y - this.oy;
         if (keys(cx, cy) && (!inside || inside(cx, cy)) && (!this.clipPred || this.clipPred(cx, cy))) mask[y * w + x] = 1;
       }
-    applyForm(this.img, mask, this.pal, o);
+    applyForm(this.img, mask, this.pal, { ...o, bleed: o.bleed ?? this.bleed });
   }
 
   /** Recolor { m: "M" } inside a region. */

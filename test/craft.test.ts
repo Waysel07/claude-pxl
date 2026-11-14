@@ -37,6 +37,10 @@ test("ramp: even dark -> light steps, base kept, hue shifts cool in shadow and w
 test("ramp() defines keys, registers the ramp and validates", () => {
   eq(art(RAMP + 'sprite("a", "333", shade([0, 0, 1, 1]), light([2, 0, 1, 1]))', "a"), "234");
   assert.match(failure(RAMP + 'ramp("aa", "#fff")').message, /distinct keys/);
+  assert.match(failure(RAMP + 'ramp("jk", "#fff")').message, /'k' already defined/);
+  // The base is always the middle key; a light base still gets distinct highlights.
+  eq(loadSource('ramp("abcde", "#e9b83a")').pal.table().c, "#e9b83a");
+  eq(lintPalette(loadSource('ramp("abcde", "#e9b83a")').pal).length, 0);
   assert.match(failure(RAMP + 'ramp("ab", "#fff", { shft: 1 })').message, /did you mean 'shift'/);
 });
 
@@ -66,8 +70,15 @@ test("form: keys, bevel, asset option after mirroring", () => {
   assert.match(failure(RAMP + 'sprite("a", { w: 4, h: 4 }, rect(0, 0, 4, 4, "3"), form({ from: "up" }))', "a").message, /form from must be/);
 });
 
+test("form: shapes running off a scene are not shaded along the canvas border", () => {
+  const src = (kind: string, extra = "") => RAMP + `${kind}("a", { w: 24, h: 12 }, blob([0, 12, 0, 6, 12, 2, 24, 6, 24, 12], "3"), form({ from: "t"${extra} }))`;
+  const scene = art(src("scene"), "a").split("\n"), sprite = art(src("sprite"), "a").split("\n");
+  assert.ok(sprite[11].includes("2") && !scene[11].includes("2"));
+  eq(art(src("sprite", ", bleed: true"), "a"), scene.join("\n"));
+});
+
 test("selout tints the outline from the color it touches", () => {
-  eq(art(RAMP + 'sprite("a", { outline: "k", selout: true }, "35")', "a"), ".13.\n1353\n.13.");
+  eq(art(RAMP + 'sprite("a", { outline: "k", selout: true }, "35")', "a"), ".12.\n1352\n.12."); // highlights: capped at the 2nd-darkest
   eq(art(RAMP + 'sprite("a", { outline: "k", selout: 1 }, "31")', "a"), ".2k.\n231k\n.2k."); // darkest shade keeps the outline color
   assert.match(failure(RAMP + 'sprite("a", { selout: true }, "3")').message, /needs an outline/);
 });

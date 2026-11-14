@@ -16,6 +16,9 @@ for people too. No runtime dependencies, no build step: just Node ≥ 22.18.
   <img src="docs/gallery/neon_noodle_3d.png" width="49%" alt="Neon noodle bar scene">
 </p>
 <p>
+  <img src="docs/gallery/showcase_sprites.png" width="100%" alt="Sprites shaded with ramp, form and selout: apple, potion, coin, sword, shield, slime, fish, mushroom, angler">
+</p>
+<p>
   <img src="docs/gallery/cave.gif" width="49%" alt="Animated glowing cave">
   <img src="docs/gallery/cat.gif" height="96" alt="Animated cat">
   <img src="docs/gallery/frog.gif" height="96" alt="Animated frog">

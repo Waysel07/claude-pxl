@@ -132,6 +132,7 @@ export function buildAsset(ctx: BuildCtx, def: AssetDef, seed: number, trace?: T
     c.frame = frame;
     c.frames = frames;
     c.inAnim = !!tl;
+    c.bleed = def.kind === "scene";
     return c;
   };
   const main = timed(new Canvas(base, pal, ctx, 0, 0, seed));
@@ -291,6 +292,7 @@ function finish(img: Img, def: AssetDef, pal: Palette, trace?: Trace): Img {
     const fo = o.form === true ? {} : o.form;
     step("form", () => {
       const c = new Canvas(img, pal, NO_ASSETS);
+      c.bleed = def.kind === "scene";
       c.form(fo);
     });
   }
@@ -310,20 +312,27 @@ const NO_ASSETS: Resolver = {
 
 /**
  * Selective outline: an outline pixel takes the color it touches most, stepped `steps` shades
- * down its ramp. Colors off the ramps, or already at the dark end, keep the plain outline color.
+ * down its ramp (at most the second-darkest). Colors off the ramps, or too dark to step, keep
+ * the plain outline color.
  */
 function seloutPick(pal: Palette, steps: number): (touching: Color[]) => Color | undefined {
-  const down = pal.stepMap(-1);
+  // color -> its ramp's colors and its index there (first ramp wins, like shade()).
+  const where = new Map<Color, { cols: Color[]; i: number }>();
+  for (const r of pal.ramps) {
+    const cols = [...r].map((k) => pal.keys.get(k)!);
+    cols.forEach((c, i) => { if (!where.has(c)) where.set(c, { cols, i }); });
+  }
   return (touching) => {
     let best: Color | undefined, n = 0;
     for (const c of touching) {
       const k = touching.filter((v) => v === c).length;
       if (k > n) { best = c; n = k; }
     }
-    if (best === undefined) return undefined;
-    let c = best;
-    for (let i = 0; i < steps; i++) c = down.get(c) ?? c;
-    return c === best ? undefined : c;
+    const at = best === undefined ? undefined : where.get(best);
+    if (!at) return undefined;
+    // Never lighter than the ramp's second-darkest shade, so highlights keep a readable edge.
+    const i = Math.min(at.i - steps, 1);
+    return i < 0 || i >= at.i ? undefined : at.cols[i];
   };
 }
 

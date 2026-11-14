@@ -86,6 +86,8 @@ export interface FormOpts {
   bias?: number;
   /** 0..1: dither the band edges (default 0 = clean cel bands). */
   soft?: number;
+  /** The form continues past the canvas border, so the border isn't shaded as an edge (default: true in scenes, false in sprites). */
+  bleed?: boolean;
   /** Keys that take part (default "*": every opaque pixel). */
   on?: string;
   /** Region limit. */

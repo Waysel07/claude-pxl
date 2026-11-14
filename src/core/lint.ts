@@ -31,7 +31,7 @@ export function lintImage(img: Img, pal: Palette): string[] {
           if ((dx || dy) && img.get(x + dx, y + dy) === c) { alone = false; break; }
       if (alone) { strays++; if (stray.length < 6) stray.push(`${x},${y}`); }
     }
-  if (strays >= Math.max(4, Math.ceil(opaque * 0.02)))
+  if (strays >= Math.max(6, Math.ceil(opaque * 0.03)))
     out.push(`${strays} stray single pixels (${stray.join(" ")}${strays > stray.length ? " …" : ""}): merge them into clusters or remove them`);
 
   // Colors too close to tell apart only add noise.
@@ -41,14 +41,15 @@ export function lintImage(img: Img, pal: Palette): string[] {
     for (let j = i + 1; j < used.length; j++)
       if (deltaE(used[i], used[j]) < 0.03 && twins.length < 3) twins.push(`${name(used[i])}/${name(used[j])}`);
   if (twins.length) out.push(`colors ${twins.join(", ")} are nearly identical: use one, or push them apart`);
-  if (used.length > 20) out.push(`${used.length} colors: fewer, clearer shades usually read better (2-4 per material)`);
+  if (used.length > 20 && opaque < 3000) out.push(`${used.length} colors: fewer, clearer shades usually read better (2-4 per material)`);
 
   // A big sprite where one ramp color fills most of the shape, with none of its shades used.
   if (opaque >= 150 && pal.ramps.length) {
     for (const r of pal.ramps) {
       const cols = [...r].map((k) => pal.keys.get(k)!);
       const present = cols.filter((c) => count.has(c));
-      if (present.length !== 1 || cols.length < 2) continue;
+      // The darkest key is usually the shared outline color, not a material.
+      if (present.length !== 1 || cols.length < 2 || present[0] === cols[0]) continue;
       const n = count.get(present[0])!;
       if (n >= opaque * 0.35 && n >= 100) {
         out.push(`'${name(present[0])}' is flat over ${n}px: give it volume (form(), or shade()/light() regions)`);
