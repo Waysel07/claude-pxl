@@ -134,8 +134,8 @@ of jitter; keep feet/baselines fixed unless the motion says otherwise.
 Sprite recipe (see `examples/showcase.px.js`): `ramp` per material → flat silhouettes with `blob`,
 `circ`, `rect` in each ramp's base key → one `form({ lo: 2 })` for the whole figure (or
 `form({ on: "abc" })` per part) → small details on top (eyes, glints, seams) → `outline: "k",
-selout: true`. Whites and creams need their own short ramp or they stay flat. Give every ramp
-fresh keys: `ramp` redefines keys it is given, including your outline key.
+selout: true`. Whites and creams need their own short ramp or they stay flat. Every ramp needs
+fresh keys (reusing one, such as the outline key, is an error).
 
 ## Habits that save tokens and give better art
 
