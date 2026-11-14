@@ -140,3 +140,20 @@ export function review(img: Img, scale = Math.max(1, Math.min(10, Math.floor(224
   });
   return o;
 }
+
+/** Art next to a reference, each at a whole-number scale of similar height, on dark and light backdrops. */
+export function versus(art: Img, ref: Img, target = 224): Img {
+  const sc = (i: Img) => Math.max(1, Math.round(target / Math.max(i.w, i.h)));
+  const a = art.scale(sc(art)), r = ref.scale(sc(ref)), pad = 8;
+  const backs = [pack(0x24, 0x22, 0x2e), pack(0xe9, 0xe4, 0xd8)];
+  const rowH = Math.max(a.h, r.h), W = pad * 3 + a.w + r.w, H = pad + backs.length * (rowH + pad);
+  const o = new Img(W, H).fill(pack(0x50, 0x50, 0x58));
+  backs.forEach((bk, k) => {
+    const y0 = pad + k * (rowH + pad);
+    for (const [im, x0] of [[a, pad], [r, pad * 2 + a.w]] as [Img, number][]) {
+      for (let y = 0; y < rowH; y++) for (let x = 0; x < im.w; x++) o.set(x0 + x, y0 + y, bk);
+      o.blit(im, x0, y0 + Math.floor((rowH - im.h) / 2));
+    }
+  });
+  return o;
+}

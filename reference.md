@@ -228,11 +228,18 @@ painting replay ends ("animate" toggle).
 
 ```
 node <pxl>/bin/pxl.js build <file> [--out DIR] [--only a,b] [--scale N] [--no-preview] [--no-hints]
-node <pxl>/bin/pxl.js review <file> <name> [name...] [--scale N]
+node <pxl>/bin/pxl.js review <file> <name> [name...] [--scale N] [--ref image.png]
+node <pxl>/bin/pxl.js ref <image.png> [--colors N] [--scale N] [--ascii] [--out DIR]
 node <pxl>/bin/pxl.js serve <file> [--port 4321] [--out DIR | --no-out] [--no-preview]
 node <pxl>/bin/pxl.js ascii <file> <name>
 node <pxl>/bin/pxl.js list  <file>
 ```
+
+`ref` studies a reference picture (PNG, any upscale): it detects the native pixel size, removes a
+flat background, reduces busy images to `--colors` main colors (default 24), and prints a
+`pal()`/`ramps()` block plus a style brief (outline, light, dithering, hue shift, contrast, size).
+It writes `out/_ref/<name>.png` (native) and `<name>.preview.png`. `review --ref` adds
+`_preview/<name>.vs.png` (art beside the reference) and `ok`/`differs` lines per trait.
 
 Outputs go to `<file dir>/out`: `sprites/<n>.png`, `scenes/<n>.png`, `<sheet>.png` + `<sheet>.json`
 (TexturePacker hash format: Phaser, Godot importers, ...), `_preview/<n>.png` (upscaled to

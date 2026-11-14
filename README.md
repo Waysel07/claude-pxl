@@ -79,6 +79,7 @@ writes the same `out/` files as `build`.
 ```
 pxl build <art.px.js> [--out DIR] [--only a,b] [--scale N] [--no-preview] [--no-hints]
 pxl review <art.px.js> <name>    review sheet: no grid, dark/light backdrop, values, silhouette, 1x
+pxl ref <image.png>              study a reference picture: its palette as pal()/ramps() + a style brief
 pxl serve <art.px.js> [--port 4321] [--out DIR | --no-out] [--no-preview]
 pxl ascii <art.px.js> <name>     print an asset as palette keys with x/y rulers
 pxl list  <art.px.js>            list assets, groups and sheets with source locations
@@ -95,6 +96,8 @@ pxl list  <art.px.js>            list assets, groups and sheets with source loca
   lit volumes without leaving the palette, `selout` tints outlines, `curve`/`blob` draw smooth
   organic shapes; builds print hints (stray pixels, flat areas, weak ramps) and `pxl review` shows
   the art the way it will be seen.
+- **Style references**: `pxl ref picture.png` reads a reference image (native pixel size, keyed
+  palette with ramps, outline / light / shading traits) and `pxl review --ref` checks new art against it.
 - **Sprites**: text grids, mirroring, auto-outline, palette-swap variants, flips/rotations, reusable
   `_parts`, `stamp`.
 - **Primitives and brushes**: rects, lines, circles, polygons, gradients, dithering, noise, a built-in

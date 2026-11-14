@@ -20,6 +20,7 @@ parts, primitives, brushes and tilemaps. Needs Node ≥ 22.18. No install step.
    it's cheaper than an image.
    The build also prints `hint:` lines (stray pixels, flat unshaded areas, weak ramps): act on them.
 4. Fix with small edits (a `grid(x, y, ...)` patch, one op) and rebuild. Repeat.
+   Given a reference picture to imitate: see "Drawing in the style of a reference picture" first.
 5. **Before calling a sprite done**: `PXL review art.px.js <name>` and read
    `out/_preview/<name>.review.png`. It shows the art without the grid on dark and light
    backdrops, in grayscale, as a silhouette and at true 1×/2× size: judge it there, not in the
@@ -99,6 +100,26 @@ sheet("chars", ["slime*", "chest"], { pad: 1 })
 Full API with every option: [reference.md](reference.md).
 Dynamic lighting (lamps, light blocked by solid layers, sky light, Terraria-style): read
 [lighting.md](lighting.md) only when a scene needs lights.
+
+## Drawing in the style of a reference picture
+
+When the user shows a picture and wants art "like this", study it before drawing:
+
+1. `PXL ref picture.png` (PNG only; any upscale). It prints the picture's native pixel size, a
+   ready-to-paste `pal({...})` + `ramps(...)` block with its colors grouped into ramps, and a style
+   brief: outline kind, light direction, dithering or clean bands, hue shift, contrast, subject size.
+2. Read `out/_ref/<name>.preview.png` to see it yourself: proportions, how big heads/eyes are, how
+   much detail per area, how shapes are simplified. The brief measures; it does not see taste.
+   `--ascii` prints the exact pixels as keys when you need to study a detail.
+3. Paste the palette block and follow the brief literally: same outline rule, same light, same
+   number of shades, similar size. Use only those keys; do not add `ramp()` colors of your own.
+4. `PXL review art.px.js <name> --ref picture.png` writes `<name>.vs.png` (your art beside the
+   reference) and prints one `ok` / `differs` line per trait (palette, outline, light, dithering,
+   contrast, size). Fix every `differs` unless the user asked for that difference, then look at
+   the side-by-side: it should pass as part of the same set.
+
+Mimic the style, not the picture: new subject, new shapes. Don't trace or reproduce the reference.
+Several references of one style: run `ref` on each and take the palette from the cleanest.
 
 ## Craft: what makes it read as good pixel art
 

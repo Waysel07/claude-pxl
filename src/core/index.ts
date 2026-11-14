@@ -15,5 +15,6 @@ export * from "./normals.ts";
 export * from "./form.ts";
 export * from "./ramp.ts";
 export * from "./lint.ts";
+export * from "./ref.ts";
 export { gridRows, gridSize, rng, hash, bayer, regionPred, globRe, fmtArgs } from "./util.ts";
 export { glyph, textWidth } from "./font.ts";
