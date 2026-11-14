@@ -16,6 +16,9 @@ for people too. No runtime dependencies, no build step: just Node ≥ 22.18.
   <img src="docs/gallery/neon_noodle_3d.png" width="49%" alt="Neon noodle bar scene">
 </p>
 <p>
+  <img src="docs/gallery/showcase_sprites.png" width="100%" alt="Sprites shaded with ramp, form and selout: apple, potion, coin, sword, shield, slime, fish, mushroom, angler">
+</p>
+<p>
   <img src="docs/gallery/cave.gif" width="49%" alt="Animated glowing cave">
   <img src="docs/gallery/cat.gif" height="96" alt="Animated cat">
   <img src="docs/gallery/frog.gif" height="96" alt="Animated frog">
@@ -74,7 +77,8 @@ writes the same `out/` files as `build`.
 ## Commands
 
 ```
-pxl build <art.px.js> [--out DIR] [--only a,b] [--scale N] [--no-preview]
+pxl build <art.px.js> [--out DIR] [--only a,b] [--scale N] [--no-preview] [--no-hints]
+pxl review <art.px.js> <name>    review sheet: no grid, dark/light backdrop, values, silhouette, 1x
 pxl serve <art.px.js> [--port 4321] [--out DIR | --no-out] [--no-preview]
 pxl ascii <art.px.js> <name>     print an asset as palette keys with x/y rulers
 pxl list  <art.px.js>            list assets, groups and sheets with source locations
@@ -87,6 +91,10 @@ pxl list  <art.px.js>            list assets, groups and sheets with source loca
 
 - **Palettes and ramps**: one-character color keys, built-in palettes (pico8, sweetie16, endesga32…),
   dark→light ramps that drive `shade()` / `light()`.
+- **Craft tools**: `ramp()` builds hue-shifted ramps from one color, `form()` shades flat shapes as
+  lit volumes without leaving the palette, `selout` tints outlines, `curve`/`blob` draw smooth
+  organic shapes; builds print hints (stray pixels, flat areas, weak ramps) and `pxl review` shows
+  the art the way it will be seen.
 - **Sprites**: text grids, mirroring, auto-outline, palette-swap variants, flips/rotations, reusable
   `_parts`, `stamp`.
 - **Primitives and brushes**: rects, lines, circles, polygons, gradients, dithering, noise, a built-in

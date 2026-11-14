@@ -201,16 +201,23 @@ export class Img {
   }
 
   /** 1px outline around opaque pixels; grows the canvas by 1 on every side. */
-  outline(c: Color, diagonal = false): Img {
+  outline(c: Color, diagonal = false, pick?: (touching: Color[]) => Color | undefined): Img {
     const src = this.pad(1);
     const o = src.copy();
-    const op = (x: number, y: number) => src.get(x, y) !== TRANSPARENT;
+    const near = (x: number, y: number, d: number[]) => {
+      const t: Color[] = [];
+      for (let i = 0; i < d.length; i += 2) {
+        const v = src.get(x + d[i], y + d[i + 1]);
+        if (v !== TRANSPARENT) t.push(v);
+      }
+      return t;
+    };
     for (let y = 0; y < src.h; y++)
       for (let x = 0; x < src.w; x++) {
-        if (op(x, y)) continue;
-        let hit = op(x - 1, y) || op(x + 1, y) || op(x, y - 1) || op(x, y + 1);
-        if (!hit && diagonal) hit = op(x - 1, y - 1) || op(x + 1, y - 1) || op(x - 1, y + 1) || op(x + 1, y + 1);
-        if (hit) o.set(x, y, c);
+        if (src.get(x, y) !== TRANSPARENT) continue;
+        let t = near(x, y, [-1, 0, 1, 0, 0, -1, 0, 1]);
+        if (!t.length && diagonal) t = near(x, y, [-1, -1, 1, -1, -1, 1, 1, 1]);
+        if (t.length) o.set(x, y, pick?.(t) ?? c);
       }
     return o;
   }

@@ -3,7 +3,8 @@ import { Img } from "./image.ts";
 import type { Palette, Resolved } from "./palette.ts";
 import { PxError } from "./errors.ts";
 import { glyph, lineWidth } from "./font.ts";
-import type { BumpOpts, LampOpts, PlaceOpts, ScatterOpts, TextOpts, Timeline, TilemapOpts, WireOpts } from "./model.ts";
+import { applyForm } from "./form.ts";
+import type { BumpOpts, FormOpts, LampOpts, PlaceOpts, ScatterOpts, TextOpts, Timeline, TilemapOpts, WireOpts } from "./model.ts";
 import { bump, dirOf, setNormal } from "./normals.ts";
 import { bayer, colorList, gridRows, hash, inPoly, polyBounds, type Region, regionPred, rng } from "./util.ts";
 
@@ -39,6 +40,8 @@ export class Canvas {
   /** Inside an anim: the frame being drawn and the frame count (for procedural animation). */
   frame = 0;
   frames = 1;
+  /** Default for form({ bleed }): true while building a scene. */
+  bleed = false;
   /** Building an anim (frame() items allowed). */
   inAnim = false;
   /** Composite below the current layer (absolute coords), for `below` masks. */
@@ -202,6 +205,55 @@ export class Canvas {
       for (let x = Math.floor(b.x0); x < Math.ceil(b.x1); x++) if (inside(x, y)) this.plot(x, y, col);
   }
 
+  /**
+   * Smooth pixel-perfect stroke through the points (Catmull-Rom): no doubled corner pixels.
+   * Repeat a point to make a sharp corner there. width > 1 uses a round brush.
+   */
+  curve(pts: number[], c: string, width = 1): void {
+    if (!Array.isArray(pts) || pts.length < 4 || pts.length % 2) throw new PxError("curve needs [x0,y0, x1,y1, ...] (at least 2 points)");
+    const col = this.color(c);
+    const path: number[] = [];
+    for (const [fx, fy] of spline(pts, false)) {
+      const x = Math.round(fx), y = Math.round(fy), k = path.length;
+      if (k && path[k - 2] === x && path[k - 1] === y) continue;
+      // Fill any gap a coarse sample left, so the path stays 8-connected.
+      if (k && (Math.abs(x - path[k - 2]) > 1 || Math.abs(y - path[k - 1]) > 1)) {
+        let px = path[k - 2], py = path[k - 1];
+        while (Math.abs(x - px) > 1 || Math.abs(y - py) > 1) { px += Math.sign(x - px); py += Math.sign(y - py); path.push(px, py); }
+      }
+      path.push(x, y);
+    }
+    if (width > 1) {
+      for (let i = 2; i < path.length; i += 2) this.line(path[i - 2], path[i - 1], path[i], path[i + 1], c, width);
+      if (path.length === 2) this.line(path[0], path[1], path[0], path[1], c, width);
+      return;
+    }
+    // Pixel-perfect: drop the corner pixel of every "L" (its two neighbours already touch).
+    const out: number[] = [];
+    for (let i = 0; i < path.length; i += 2) {
+      const k = out.length;
+      if (k >= 2 && i + 2 < path.length) {
+        const ax = out[k - 2], ay = out[k - 1], bx = path[i + 2], by = path[i + 3];
+        if (Math.abs(ax - bx) <= 1 && Math.abs(ay - by) <= 1 && (ax !== bx || ay !== by)) continue;
+      }
+      out.push(path[i], path[i + 1]);
+    }
+    for (let i = 0; i < out.length; i += 2) this.plot(out[i], out[i + 1], col);
+  }
+
+  /**
+   * Filled organic shape: a closed smooth curve through the points (vertices on pixel corners,
+   * like poly). Repeat a point to make a sharp corner there.
+   */
+  blob(pts: number[], c: string): void {
+    if (!Array.isArray(pts) || pts.length < 6 || pts.length % 2) throw new PxError("blob needs [x0,y0, x1,y1, x2,y2, ...] (at least 3 points)");
+    const col = this.color(c), flat: number[] = [];
+    for (const [x, y] of spline(pts, true)) flat.push(x, y);
+    const inside = inPoly(flat), b = polyBounds(flat);
+    for (let y = Math.floor(b.y0); y < Math.ceil(b.y1); y++)
+      for (let x = Math.floor(b.x0); x < Math.ceil(b.x1); x++) if (inside(x, y)) this.plot(x, y, col);
+  }
+
   /** 4-connected flood fill of the region containing (x, y). */
   fill(x: number, y: number, c: string): void {
     const col = this.color(c);
@@ -278,6 +330,21 @@ export class Canvas {
         for (let i = 0; i < steps; i++) c = map.get(c) ?? c;
         this.plot(x, y, c);
       }
+  }
+
+  /**
+   * Form shading: read the pixels of `on` keys (default every opaque pixel) as one rounded solid
+   * lit from `from`, and step each lighter/darker along its ramp in clean bands. In palette.
+   */
+  form(o: FormOpts = {}): void {
+    const { w, h } = this.img, mask = new Uint8Array(w * h);
+    const keys = this.maskAt(o.on ?? "*"), inside = o.where === undefined ? undefined : regionPred(o.where);
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const cx = x - this.ox, cy = y - this.oy;
+        if (keys(cx, cy) && (!inside || inside(cx, cy)) && (!this.clipPred || this.clipPred(cx, cy))) mask[y * w + x] = 1;
+      }
+    applyForm(this.img, mask, this.pal, { ...o, bleed: o.bleed ?? this.bleed });
   }
 
   /** Recolor { m: "M" } inside a region. */
@@ -517,6 +584,28 @@ export class Canvas {
   }
 }
 
+/** Points along a Catmull-Rom spline through `pts` ([x0,y0, ...]); ~2 samples per pixel. */
+function* spline(pts: number[], closed: boolean): Generator<[number, number]> {
+  const n = pts.length / 2;
+  const P = (i: number): [number, number] => {
+    const k = closed ? ((i % n) + n) % n : Math.min(n - 1, Math.max(0, i));
+    return [pts[2 * k], pts[2 * k + 1]];
+  };
+  const segs = closed ? n : n - 1;
+  for (let s = 0; s < segs; s++) {
+    const [x0, y0] = P(s - 1), [x1, y1] = P(s), [x2, y2] = P(s + 1), [x3, y3] = P(s + 2);
+    const steps = Math.max(2, Math.ceil(Math.hypot(x2 - x1, y2 - y1) * 2));
+    for (let i = 0; i < steps; i++) {
+      const t = i / steps, t2 = t * t, t3 = t2 * t;
+      yield [
+        0.5 * (2 * x1 + (-x0 + x2) * t + (2 * x0 - 5 * x1 + 4 * x2 - x3) * t2 + (-x0 + 3 * x1 - 3 * x2 + x3) * t3),
+        0.5 * (2 * y1 + (-y0 + y2) * t + (2 * y0 - 5 * y1 + 4 * y2 - y3) * t2 + (-y0 + 3 * y1 - 3 * y2 + y3) * t3),
+      ];
+    }
+  }
+  if (!closed) yield P(n - 1);
+}
+
 /** Start time (ms) of frame `n` of a timeline. */
 export function frameStart(tl: Timeline, n: number): number {
   if (!tl.durations) return Math.max(0, Math.floor(n)) * tl.step;
@@ -528,8 +617,8 @@ export function frameStart(tl: Timeline, n: number): number {
 
 /** Ops callable from art files; each top-level call can be traced as one painting step. */
 export const OPS = [
-  "px", "rect", "box", "line", "hline", "vline", "ellipse", "circ", "ring", "poly", "fill",
-  "dither", "grad", "noise", "recolor", "shade", "light",
+  "px", "rect", "box", "line", "hline", "vline", "ellipse", "circ", "ring", "poly", "curve", "blob", "fill",
+  "dither", "grad", "noise", "recolor", "shade", "light", "form",
   "stamp", "tile", "pattern", "tilemap", "scatter", "grid", "wire", "text", "lamp", "bump", "normals",
 ] as const;
 export type OpName = (typeof OPS)[number];

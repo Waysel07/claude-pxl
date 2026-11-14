@@ -6,6 +6,8 @@ import type { Img } from "../core/image.ts";
 import type { Project } from "../core/project.ts";
 import { type FrameTag, packSheet, preview, previewScale, sheetJson } from "../core/render.ts";
 import { normalImage } from "../core/normals.ts";
+import { lintImage, lintPalette } from "../core/lint.ts";
+import type { Palette } from "../core/palette.ts";
 import { encodeGif } from "./gif.ts";
 import { encodePng } from "./png.ts";
 
@@ -16,6 +18,8 @@ export interface OutputOptions {
   preview?: boolean;
   /** Fixed preview scale (default: auto). */
   scale?: number;
+  /** Print craft hints (stray pixels, flat areas, weak ramps) under each sprite (default true). */
+  hints?: boolean;
 }
 
 export interface OutputResult {
@@ -50,6 +54,7 @@ export function writeOutputs(p: Project, out: string, opts: OutputOptions = {}):
   };
 
   const names = want ? p.order.filter((n) => want.has(n)) : p.exported();
+  const pals = new Set<Palette>();
   for (const n of names) {
     const def = p.assets.get(n)!;
     try {
@@ -81,6 +86,10 @@ export function writeOutputs(p: Project, out: string, opts: OutputOptions = {}):
         pv = ` @${s}x`;
       }
       lines.push(`${def.kind} ${n} ${b.img.w}x${b.img.h}${info}${pv}`);
+      if (opts.hints !== false) {
+        if (def.kind !== "scene") for (const hint of lintImage(b.img, def.pal)) lines.push(`  hint: ${hint}`);
+        pals.add(def.pal);
+      }
     } catch (e) {
       errors.push(wrap(e));
     }
@@ -106,5 +115,8 @@ export function writeOutputs(p: Project, out: string, opts: OutputOptions = {}):
       errors.push(wrap(e).within(`sheet '${s.name}'`, s.loc));
     }
   }
+  const said = new Set<string>();
+  for (const pal of pals)
+    for (const hint of lintPalette(pal)) if (!said.has(hint)) { said.add(hint); lines.push(`hint: ${hint}`); }
   return { lines, errors };
 }

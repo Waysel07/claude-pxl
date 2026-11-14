@@ -1,5 +1,5 @@
 // Derived views of built images: previews for eyes, ASCII for exact checks, sheet packing.
-import { type Color, TRANSPARENT, darken, pack } from "./color.ts";
+import { type Color, TRANSPARENT, darken, pack, toOklab } from "./color.ts";
 import { Img } from "./image.ts";
 import type { Palette } from "./palette.ts";
 
@@ -101,4 +101,42 @@ export function sheetJson(image: string, sheet: Img, frames: SheetFrame[], tags:
   const meta: Record<string, unknown> = { app: "pxl", image, format: "RGBA8888", size: { w: sheet.w, h: sheet.h }, scale: "1" };
   if (tags.length) meta.frameTags = tags.map((t) => ({ ...t, direction: "forward" }));
   return JSON.stringify({ frames: out, meta }, null, 1) + "\n";
+}
+
+/**
+ * Review sheet for judging a sprite the way it will be seen, without the editing grid:
+ * the art on a dark and a light backdrop, its values (grayscale), its silhouette, then
+ * true-size 1x / 2x copies and the colors it uses (most used first).
+ */
+export function review(img: Img, scale = Math.max(1, Math.min(10, Math.floor(224 / Math.max(img.w, img.h))))): Img {
+  const big = img.scale(scale), pad = 8;
+  const backs = [pack(0x24, 0x22, 0x2e), pack(0xe9, 0xe4, 0xd8), pack(0x80, 0x80, 0x80), pack(0xf4, 0xf4, 0xf4)];
+  const grey = new Img(big.w, big.h), sil = new Img(big.w, big.h);
+  for (let i = 0; i < big.data.length; i++) {
+    const c = big.data[i];
+    if (c === TRANSPARENT) continue;
+    const v = Math.round(toOklab(c)[0] * 255);
+    grey.data[i] = pack(v, v, v);
+    sil.data[i] = pack(0x18, 0x18, 0x20);
+  }
+  const panels = [big, big, grey, sil];
+  const count = new Map<Color, number>();
+  for (const c of img.data) if (c !== TRANSPARENT) count.set(c, (count.get(c) ?? 0) + 1);
+  const cols = [...count.entries()].sort((a, b) => b[1] - a[1]).map((e) => e[0]).slice(0, 48);
+  const sw = 12, stripH = Math.max(img.h * 2, sw) + pad;
+  const W = pad + panels.length * (big.w + pad), H = pad + big.h + pad + stripH + pad;
+  const o = new Img(Math.max(W, pad * 2 + img.w * 3 + pad * 2 + cols.length * sw), H).fill(pack(0x50, 0x50, 0x58));
+  panels.forEach((p, k) => {
+    const x0 = pad + k * (big.w + pad);
+    for (let y = 0; y < big.h; y++) for (let x = 0; x < big.w; x++) o.set(x0 + x, pad + y, backs[k]);
+    o.blit(p, x0, pad);
+  });
+  const y1 = pad + big.h + pad;
+  o.blit(img, pad, y1);
+  o.blit(img.scale(2), pad + img.w + pad, y1);
+  cols.forEach((c, k) => {
+    const x0 = pad + img.w * 3 + pad * 2 + k * sw;
+    for (let y = 0; y < sw; y++) for (let x = 0; x < sw; x++) o.set(x0 + x, y1 + y, c);
+  });
+  return o;
 }

@@ -18,8 +18,13 @@ parts, primitives, brushes and tilemaps. Needs Node ≥ 22.18. No install step.
 3. **Look at it**: read `out/_preview/<name>.png` (upscaled, checkerboard = transparent, grid every
    pixel, darker every 8). For exact pixel fixes use `PXL ascii art.px.js <name>` (keys + x/y rulers);
    it's cheaper than an image.
+   The build also prints `hint:` lines (stray pixels, flat unshaded areas, weak ramps): act on them.
 4. Fix with small edits (a `grid(x, y, ...)` patch, one op) and rebuild. Repeat.
-5. If the user wants to watch: start `PXL serve art.px.js` in the background and give them the URL.
+5. **Before calling a sprite done**: `PXL review art.px.js <name>` and read
+   `out/_preview/<name>.review.png`. It shows the art without the grid on dark and light
+   backdrops, in grayscale, as a silhouette and at true 1×/2× size: judge it there, not in the
+   gridded preview.
+6. If the user wants to watch: start `PXL serve art.px.js` in the background and give them the URL.
    It rebuilds on every save and replays the edited asset's painting steps; it also writes the same
    `out/` files, so keep reading previews as usual.
 
@@ -30,7 +35,8 @@ One broken asset doesn't stop the others from building.
 
 ```js
 pal({ k: "#1b1630", g: "#8ccf63", G: "#4c8a44", t: "#2a5560", w: "#fff6e0", r: "#e2585e", R: "#a63a4c" })
-ramps("ktGg", "kRr")                   // dark -> light, drives shade()/light()
+ramps("ktGg", "kRr")                   // hand-picked ramps, dark -> light: drive shade()/light()
+ramp("12345", "#4a86d8")               // or: 5 hue-shifted shades from one color; "3" (middle) is that color
 
 // Symmetric: write the left half, mirror it, outline it.
 sprite("slime", { mx: true, outline: "k" }, `
@@ -42,6 +48,12 @@ sprite("slime", { mx: true, outline: "k" }, `
   tgggggg
   .tttttt`)
 sprite("slime_red", { base: "slime", swap: { g: "r", G: "R" } })   // variant: 1 line
+
+// Flat shape -> volume -> tinted outline: the default recipe for anything rounded.
+sprite("orb", { w: 20, h: 20, outline: "k", selout: true }, circ(10, 10, 9, "3"), form({ lo: 2 }))
+sprite("fish", { w: 30, h: 16, outline: "k", selout: true },
+  blob([22, 8, 29, 2, 27, 8, 29, 14], "2"), blob([1, 8, 6, 3, 15, 1, 22, 5, 25, 8, 22, 12, 15, 15, 6, 13], "3"),
+  form({ lo: 2 }), rect(5, 6, 2, 2, "k"), curve([10, 4, 12, 8, 10, 12], "2"))
 
 sprite("_eye", "wk\nkk")                                            // "_" = part, not exported
 sprite("chest", { w: 16, h: 12, outline: "k" },
@@ -61,7 +73,13 @@ sheet("chars", ["slime*", "chest"], { pad: 1 })
   (`0-f`); `use("sweetie16" | "db16" | "endesga32" | "gray8")` for others.
 - **Items run in order**: grid strings (drawn at 0,0), ops, `(c) => { c.rect(...) }` functions,
   `layer(...)`s. Then mirror → swap → flip → rot → outline (grows 1px each side) → crop.
-- **Shapes**: `px rect box line(…, width) hline vline circ ring ellipse poly fill wire text`.
+- **Shapes**: `px rect box line(…, width) hline vline circ ring ellipse poly fill wire text`;
+  organic: `blob(points, c)` (smooth filled shape) and `curve(points, c, width?)` (pixel-perfect stroke).
+- **Volume**: `ramp("dDmlL", "#hex")` makes a hue-shifted ramp (the middle key is your color; keys
+  must be new). `form({ from: "tl", lo: 2 })` then shades everything drawn so far as rounded forms
+  along the ramps, in clean bands (`shape: "bevel"` for boxes, `on: "abc"` per material; as a
+  sprite option `form: true` it runs after `mx`). `selout: true` next to `outline` tints the
+  outline from the colors it touches.
 - **Tone**: `dither grad noise`, `shade/light(region, steps, density)`, `recolor`, and
   `shade:`/`light:` layers for cast shadows and glows. Regions: `[cx,cy,r]`, `[x,y,w,h]`,
   polygon, or a function. `clip(region, ...items)` restricts any items (half shapes, slopes).
@@ -82,6 +100,43 @@ Full API with every option: [reference.md](reference.md).
 Dynamic lighting (lamps, light blocked by solid layers, sky light, Terraria-style): read
 [lighting.md](lighting.md) only when a scene needs lights.
 
+## Craft: what makes it read as good pixel art
+
+Work in this order; each step is cheap to check in the preview before the next.
+
+1. **Silhouette first.** Block the whole subject in one flat color and look: it must be recognizable
+   as a black shape. Exaggerate what identifies it (ears, tail, hat, weapon); give limbs and props
+   gaps of at least 1px of background so they don't merge. Organic bodies: `blob`/`curve`, not
+   straight-edged `poly`. Pick the size by what must be readable: 16px icons hold one idea, a
+   face needs ~24px, a character with an expression 32px+. Don't draw big and hope.
+2. **Few colors, real ramps.** 3–5 shades per material, 8–16 colors per sprite, shared across the
+   set. Build each material with `ramp("dDmlL", "#hex")` so shadows shift toward blue/purple and highlights toward
+   yellow; never darken by adding black or lighten by adding white. Neighbouring shades must be
+   clearly different (if you can't see the step at 1x, drop a shade).
+3. **One light, top-left**, the same for every asset in a set. Shade forms, not edges: shadow sits
+   on the side away from the light and under overhangs (chin, brim, belly), highlight is a small
+   cluster inside the lit side. `form()` does this for round forms; flat faces get one shade each.
+   Never ring a shape with darker bands that follow its outline ("pillow shading").
+4. **Clusters, not specks.** Every pixel belongs to a group of its color big enough to read (2+
+   px). Single stray pixels are noise; the exceptions are deliberate: eye glints, stars, rivets.
+   No 1px checker/dither inside small sprites; dither only on large, smooth areas.
+5. **Clean lines.** Curves step in runs that grow or shrink steadily (5,3,2,1,1,2,3,5), never
+   3,1,4,1. Lines are 1px with no doubled corners (`curve` guarantees both).
+6. **Outline with intent.** Dark outline for game sprites that must pop on any background;
+   `selout: true` tints it by the neighbouring color so it's softer on the lit side. Inside the sprite,
+   separate parts with a darker shade of their own color, not black lines.
+7. **Check at 1x.** `PXL review art.px.js <name>` shows the sprite at game size on dark and light backgrounds and as a
+   silhouette. If the idea doesn't read there, fix shapes and contrast, not details.
+
+Animation: move the silhouette, not just interior pixels; 2–4 frames of squash/bob beat 8 frames
+of jitter; keep feet/baselines fixed unless the motion says otherwise.
+
+Sprite recipe (see `examples/showcase.px.js`): `ramp` per material → flat silhouettes with `blob`,
+`circ`, `rect` in each ramp's base key → one `form({ lo: 2 })` for the whole figure (or
+`form({ on: "abc" })` per part) → small details on top (eyes, glints, seams) → `outline: "k",
+selout: true`. Whites and creams need their own short ramp or they stay flat. Every ramp needs
+fresh keys (reusing one, such as the outline key, is an error).
+
 ## Habits that save tokens and give better art
 
 - Write half of anything symmetric (`mx`) and let `outline` draw outlines. Never hand-draw either.
@@ -99,7 +154,8 @@ Dynamic lighting (lamps, light blocked by solid layers, sky light, Terraria-styl
   Flat color is fine; a clean wall beats a dotted one. `noise` is OK only where the material itself
   is granular (gravel, sand, asphalt, tar roofs, rough stone), and keep it sparse. On faces drawn
   at an angle (3/4 views), make the marks follow the face's slant.
-- Lighting: define `ramps`, then `light`/`shade` regions; stack a `density: 0.5` pass for soft edges.
+- Shading: `ramp()` + `form()` first; then `light`/`shade` regions for what form can't know (cast
+  shadows, under-brim darkness); stack a `density: 0.5` pass for soft edges on big areas only.
   Use `shade: true` layers with a `poly` for cast shadows across many objects.
 - Use mnemonic keys (`g`/`G` light/dark green). Keep 2–4 shades per material for a clean pixel-art look.
 - Build with `--only` while iterating; a full build also writes every preview.

@@ -1,18 +1,24 @@
 // pxl command line.
 import { dirname, join, resolve } from "node:path";
-import { PxError, wrap } from "../core/errors.ts";
-import { ascii } from "../core/render.ts";
+import { PxError, didYouMean, wrap } from "../core/errors.ts";
+import { ascii, packSheet, review } from "../core/render.ts";
+import { lintImage } from "../core/lint.ts";
+import { toHex } from "../core/color.ts";
 import { loadProject } from "./load.ts";
-import { writeOutputs } from "./output.ts";
+import { writeOutputs, writePng } from "./output.ts";
 import { serve } from "./server.ts";
 
 const USAGE = `pxl — pixel-art DSL
 
-  pxl build <art.px.js> [--out DIR] [--only a,b] [--scale N] [--no-preview]
+  pxl build <art.px.js> [--out DIR] [--only a,b] [--scale N] [--no-preview] [--no-hints]
       Build PNGs (out/sprites, out/scenes, out/anims strips + JSON + GIF, sheets + JSON) and
       previews (out/_preview; animated assets also get a .gif).
   pxl serve <art.px.js> [--port 4321] [--out DIR | --no-out] [--no-preview]
       Live viewer: rebuilds on save and replays each asset's painting steps.
+  pxl review <art.px.js> <name> [name...] [--scale N]
+      Write out/_preview/<name>.review.png: the asset without the grid on dark and light
+      backdrops, in grayscale (values), as a silhouette, at true 1x/2x size, and its colors.
+      Prints craft hints and color usage. Judge finished art with this, not the grid preview.
   pxl ascii <art.px.js> <name>
       Print an asset as palette keys with x/y rulers (anims: every frame).
   pxl list  <art.px.js>
@@ -29,6 +35,7 @@ interface Args {
   scale?: number;
   preview?: boolean;
   port?: number;
+  hints?: boolean;
 }
 
 function parse(argv: string[]): Args {
@@ -46,6 +53,7 @@ function parse(argv: string[]): Args {
     else if (v === "--scale") a.scale = Number(val());
     else if (v === "--port") a.port = Number(val());
     else if (v === "--no-preview") a.preview = false;
+    else if (v === "--no-hints") a.hints = false;
     else if (v === "-h" || v === "--help") a.cmd = "help";
     else if (v.startsWith("--")) throw new PxError(`unknown flag ${v}\n\n${USAGE}`);
     else if (!a.cmd) a.cmd = v;
@@ -68,7 +76,7 @@ export async function main(argv: string[]): Promise<number> {
     switch (a.cmd) {
       case "build": {
         const p = loadProject(file);
-        const r = writeOutputs(p, outDir, { only: a.only, preview: a.preview, scale: a.scale });
+        const r = writeOutputs(p, outDir, { only: a.only, preview: a.preview, scale: a.scale, hints: a.hints });
         for (const l of r.lines) console.log(l);
         for (const e of r.errors) console.error("error: " + e.message);
         console.log(`-> ${outDir}${r.errors.length ? ` (${r.errors.length} error${r.errors.length > 1 ? "s" : ""})` : ""}`);
@@ -82,6 +90,28 @@ export async function main(argv: string[]): Promise<number> {
         if (p.assets.get(name)?.kind === "anim")
           p.frames(name).forEach((f, i) => console.log(`frame ${i} (${f.ms}ms)\n${ascii(f.img, pal)}\n`));
         else console.log(ascii(p.image(name), pal));
+        return 0;
+      }
+      case "review": {
+        if (!a.rest.length) throw new PxError("review needs an asset name: pxl review <file> <name>");
+        const p = loadProject(file);
+        for (const name of a.rest) {
+          const def = p.assets.get(name), sh = p.sheets.find((s) => s.name === name);
+          if (!def && !sh) throw new PxError(`unknown asset or sheet '${name}'${didYouMean(name, [...p.order, ...p.sheets.map((s) => s.name)])}`);
+          const kind = def?.kind ?? "sheet", pal = def?.pal ?? p.pal;
+          const img = def ? p.image(name) : packSheet(p.sheetNames(sh!).map((n) => ({ name: n, img: p.image(n) })), sh!.opts.cols, sh!.opts.pad ?? 1).sheet;
+          const rev = pal.reverse();
+          const path = join(outDir, "_preview", name + ".review.png");
+          writePng(path, review(img, a.scale));
+          const count = new Map<number, number>();
+          for (const c of img.data) if (c) count.set(c, (count.get(c) ?? 0) + 1);
+          const cols = [...count.entries()].sort((x, y) => y[1] - x[1]);
+          console.log(`${kind} ${name} ${img.w}x${img.h}, ${cols.length} colors -> ${path}`);
+          console.log("  " + cols.slice(0, 24).map(([c, n]) => `${rev.get(c) ?? toHex(c)}:${n}`).join(" ") + (cols.length > 24 ? " …" : ""));
+          const hints = def ? lintImage(img, pal) : [];
+          for (const h of hints) console.log(`  hint: ${h}`);
+          if (!hints.length) console.log("  no hints");
+        }
         return 0;
       }
       case "list": {

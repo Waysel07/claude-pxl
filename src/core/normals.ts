@@ -35,16 +35,9 @@ export function dirOf(ch: string): [number, number, number] | null | "none" {
   return d;
 }
 
-/**
- * Generate normals over `mask` pixels from a height field:
- * - "bevel": edges slope down over `w` px, flat top (bricks, panels, buttons)
- * - "dome": each connected blob bulges like a pillow / sphere (barrels, fruit, rocks)
- * - "luma": brighter = higher, from the art's own shading (hand-shaded sprites)
- * Pixels outside the mask (and outside the image) count as height 0 for bevel/dome.
- */
-export function bump(img: Img, mask: Uint8Array, o: BumpOpts): void {
+/** Height of every mask pixel for a bump shape (see bump); `bw` is the bevel width. */
+export function heightField(img: Img, mask: Uint8Array, shape: string, bw = 2): Float32Array {
   const { w, h } = img, n = w * h;
-  const shape = o.shape ?? "dome", depth = o.depth ?? 1;
   const ht = new Float32Array(n);
   if (shape === "luma") {
     for (let i = 0; i < n; i++) {
@@ -55,7 +48,7 @@ export function bump(img: Img, mask: Uint8Array, o: BumpOpts): void {
   } else if (shape === "bevel" || shape === "dome") {
     const d = distance(mask, w, h);
     if (shape === "bevel") {
-      const bw = Math.max(1, o.w ?? 2);
+      bw = Math.max(1, bw);
       for (let i = 0; i < n; i++) ht[i] = Math.min(d[i], bw);
     } else {
       // Per blob: a circular profile over its own deepest distance.
@@ -80,6 +73,20 @@ export function bump(img: Img, mask: Uint8Array, o: BumpOpts): void {
       }
     }
   } else throw new PxError(`bump shape must be "bevel", "dome" or "luma", got '${shape}'`);
+  return ht;
+}
+
+/**
+ * Generate normals over `mask` pixels from a height field:
+ * - "bevel": edges slope down over `w` px, flat top (bricks, panels, buttons)
+ * - "dome": each connected blob bulges like a pillow / sphere (barrels, fruit, rocks)
+ * - "luma": brighter = higher, from the art's own shading (hand-shaded sprites)
+ * Pixels outside the mask (and outside the image) count as height 0 for bevel/dome.
+ */
+export function bump(img: Img, mask: Uint8Array, o: BumpOpts): void {
+  const { w, h } = img;
+  const shape = o.shape ?? "dome", depth = o.depth ?? 1;
+  const ht = heightField(img, mask, shape, o.w ?? 2);
 
   const nm = img.normals();
   const at = (x: number, y: number, i: number) => {
