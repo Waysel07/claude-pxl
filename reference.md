@@ -96,7 +96,7 @@ Post-processing order: mirror → swap → flip → rot → form → outline (+ 
 ### Wheels and reflections
 | Op | Notes |
 |---|---|
-| `wheel(cx, cy, r, { tire, lip, spoke?, gap?, barrel?, hub?, rx?, tilt?, depth?, wall?, lipW?, dish?, spokes = 5, spokeW?, angle? })` | car wheel: tire ring, rim lip, spokes over dark gaps, hub. `rx` < r turns it away (3/4 views), `tilt` = camber, `depth` = visible tread toward +x, `dish` = spoke face set back inside the rim (shows the `barrel`), `angle` in degrees spins it (animate with `c.phase * 360`). |
+| `wheel(cx, cy, r, { tire, lip, shine?, spoke?, gap?, barrel?, hub?, rx?, tilt?, depth?, wall?, lipW?, dish?, spokes = 5, spokeW?, angle? })` | car wheel: tire ring, rim lip, spokes over dark gaps, hub. `rx` < r turns it away (3/4 views), `tilt` = camber, `depth` = visible tread toward +x, `dish` = spoke face set back inside the rim (shows the `barrel`), `angle` in degrees spins it (animate with `c.phase * 360`). |
 | `reflect(y, { h?, squash = 1, shade = 1, density = 1, fade?, ripple?, phase?, on?, skip?, span? })` | mirror what is above line `y` below it, stepped `shade` ramp steps darker: wet roads, water, polished floors. `fade` = density at the bottom, `skip` = keys that don't reflect (sky, road), `span: [x, w]` limits it, `ripple` px + `phase` animate it. |
 
 `include("pxl:cars")` loads the built-in car kit (`car(name, { body, paint, glass, trim, metal, ... })`):

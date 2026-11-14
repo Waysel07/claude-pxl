@@ -64,7 +64,7 @@ const OP_OPTS: Record<string, string[]> = {
   bump: ["w", "depth", "on", "where"],
   lighting: ["cell", "ambient", "ambientColor", "sky", "skyColor", "skyReach", "block", "smooth", "emit", "shape", "relief", "skyDir"],
   glow: ["where", "r", "strength", "color", "bands", "ramp"],
-  wheel: ["rx", "tilt", "depth", "wall", "lipW", "dish", "spokes", "spokeW", "angle", "tire", "lip", "barrel", "spoke", "gap", "hub"],
+  wheel: ["rx", "tilt", "depth", "wall", "lipW", "dish", "spokes", "spokeW", "angle", "tire", "lip", "shine", "barrel", "spoke", "gap", "hub"],
   reflect: ["h", "squash", "shade", "density", "fade", "on", "skip", "ripple", "phase", "span"],
   form: FORM_OPTS,
 };

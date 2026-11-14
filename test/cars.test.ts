@@ -53,6 +53,15 @@ test("car kit: options, custom bodies and clear errors", () => {
   assert.match(failure('include("pxl:planes")').message, /unknown kit "pxl:planes" \(have: pxl:cars\)/);
 });
 
+test("car kit: light, bumper and wheel styles all build and differ", () => {
+  const variants = ['tailStyle: "blocks", view: "rear"', 'tailStyle: "round", view: "rear"', 'tailStyle: "slim", view: "rear", exhaust: 2', 'headStyle: "round", quad: true',
+    'headStyle: "blocks", bumper: "chrome", chrome: true', 'headStyle: "slim", bumper: "body"', 'wheels: "mesh"', 'wheels: "split"', 'wheels: "steel"', 'wheels: "disc"', 'k: "k", scale: 1.5'];
+  const p = loadSource(KIT + 'car("base", kit); car("rear", { ...kit, view: "rear" }); ' + variants.map((v, i) => `car("v${i}", { ...kit, ${v} });`).join(" "));
+  const seen = new Set([p.image("base").hash(), p.image("rear").hash()]);
+  variants.forEach((v, i) => { const h = p.image(`v${i}`).hash(); assert.ok(!seen.has(h), v); seen.add(h); });
+  assert.match(failure(KIT + 'car("x", { ...kit, wheels: "square" })', "x").message, /unknown wheels 'square'/);
+});
+
 test("gif: decode reads back what encode wrote", () => {
   const p = loadSource(PALS + 'anim("a", { w: 6, h: 4, frames: 3, fps: 10 }, (c) => c.rect(c.frame, 0, 2, 4, "n"), rect(0, 3, 6, 1, "M"))');
   const frames = p.frames("a"), back = decodeGif(encodeGif(frames));

@@ -37,7 +37,16 @@ Full example with every body and an animated rainy night scene: `examples/cars.p
 | `scale` | Size factor; 1 is about 130 px long. 0.5 gives small traffic cars. |
 | `facing` | `"right"` (default: the visible end is on the right) or `"left"`. |
 | `camber`, `tyre`, `rim`, `spin` | Stance: wheel tilt in px; sidewall height (0.14 low profile … 0.35 off-road); `wheel()` options such as `{ spokes: 6, dish: 3 }`; wheel angle in degrees. |
-| `spoiler`, `popups`, `stripe`, `mirror: false`, `k` | Rear wing, raised pop-up headlights, side stripe key, no mirror, outline key. |
+| `headStyle`, `tailStyle` | Light shapes: `"bar"` (default: one segmented band), `"blocks"` (rectangular clusters, 70s–90s), `"round"` (round lamps; `quad: true` for four headlights), `"slim"` (modern LED strips). |
+| `bumper`, `chrome` | `"black"` (default), `"body"` (painted, modern) or `"chrome"` (classic); `chrome: true` adds bright window trim. |
+| `wheels` | `"spoke"` (default five-spoke), `"mesh"` (lattice with a deep lip), `"split"` (thin twin spokes), `"steel"`, `"disc"`. `rim: { ... }` overrides any `wheel()` option. |
+| `exhaust`, `shadow: false` | 1 or 2 tailpipes; drop the contact-shadow line under the car. |
+| `spoiler`, `popups`, `stripe`, `mirror: false`, `k` | Rear wing, raised pop-up headlights, side stripe key, no mirror; `k: "k"` outlines the car, tinted by the paint it borders. |
+
+Era in three options: classic = `bumper: "chrome", chrome: true, wheels: "steel", tyre: 0.3` with
+`"round"` or `"blocks"` lights; 90s tuner = `"bar"` lights, `wheels: "mesh"`, `camber: 2`, low
+`tyre`; modern = `"slim"` lights, `bumper: "body"`, `wheels: "split"`, `exhaust: 2`. Draw hero
+cars at `scale: 1.5` or more: lights, trim and wheels need the pixels.
 
 ## Your own body
 

@@ -296,6 +296,8 @@ export interface WheelOpts {
   /** Colors: tire, rim lip, barrel (inside of a dished rim), spokes, the gaps between them, hub. */
   tire: string;
   lip: string;
+  /** Brighter key for the lit (upper-left) part of the lip. */
+  shine?: string;
   barrel?: string;
   spoke?: string;
   gap?: string;

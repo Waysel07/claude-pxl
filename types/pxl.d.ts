@@ -52,7 +52,7 @@ declare global {
   }
   interface PxWheel {
     rx?: number; tilt?: number; depth?: number; wall?: number; lipW?: number; dish?: number; spokes?: number; spokeW?: number; angle?: number;
-    tire: PxColor; lip: PxColor; barrel?: PxColor; spoke?: PxColor; gap?: PxColor; hub?: PxColor;
+    tire: PxColor; lip: PxColor; shine?: PxColor; barrel?: PxColor; spoke?: PxColor; gap?: PxColor; hub?: PxColor;
   }
   interface PxReflect {
     h?: number; squash?: number; shade?: number; density?: number; fade?: number; on?: string; skip?: string;
