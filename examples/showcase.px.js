@@ -4,7 +4,7 @@ ramp("gGhHi", "#5fb04e")          // leaf green
 ramp("rRsSt", "#d8503f")          // red
 ramp("bBcCd", "#4a86d8")          // blue
 ramp("yYzZq", "#e9b83a", { at: 3 })  // gold (light base: sit it high in the ramp)
-ramp("nNoOp", "#b07a4a")          // wood / leather
+ramp("nNoOp", "#a5653f")          // wood / leather
 ramp("mMuUv", "#8d93a6")          // steel
 ramp("145", "#f3e6cf", { at: 1 })   // cream
 

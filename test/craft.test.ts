@@ -106,7 +106,7 @@ test("lint: stray pixels, twin colors, flat areas; clean art stays quiet", () =>
   const img = (src: string) => { const p = loadSource(src); return lintImage(p.image("a"), p.assets.get("a")!.pal); };
   eq(img(RAMP + 'sprite("a", { w: 20, h: 20 }, circ(10, 10, 9, "3"), form())').length, 0);
   assert.match(img(RAMP + 'sprite("a", { w: 20, h: 20 }, circ(10, 10, 9, "3"))')[0], /'3' is flat/);
-  assert.match(img(RAMP + 'sprite("a", { w: 12, h: 12 }, rect(0, 0, 12, 12, "3"), form(), noise(0, 0, 12, 12, "k", 0.08, 2))').join(), /stray single pixels/);
+  assert.match(img(RAMP + 'sprite("a", { w: 16, h: 16 }, rect(0, 0, 16, 16, "3"), form(), noise(0, 0, 16, 16, "k", 0.08, 2))').join(), /stray single pixels/);
   assert.match(img('pal({ a: "#5aa64b", b: "#5ba74c" }); sprite("a", "aabb\\naabb")').join(), /nearly identical/);
   assert.match(lintPalette(loadSource('pal({ a: "#205020", b: "#40a040", c: "#80ff80" }); ramps("abc")').pal).join(), /no hue shift/);
   assert.match(lintPalette(loadSource('pal({ a: "#40a040", b: "#205020" }); ramps("ab")').pal).join(), /darker than/);
