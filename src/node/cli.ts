@@ -1,7 +1,11 @@
 // pxl command line.
-import { dirname, join, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
 import { PxError, didYouMean, wrap } from "../core/errors.ts";
-import { ascii, packSheet, review } from "../core/render.ts";
+import { ascii, packSheet, preview, review, versus } from "../core/render.ts";
+import { analyzeRef, compareStyle } from "../core/ref.ts";
+import type { Img } from "../core/image.ts";
+import { decodePng } from "./png.ts";
 import { lintImage } from "../core/lint.ts";
 import { toHex } from "../core/color.ts";
 import { loadProject } from "./load.ts";
@@ -15,10 +19,15 @@ const USAGE = `pxl — pixel-art DSL
       previews (out/_preview; animated assets also get a .gif).
   pxl serve <art.px.js> [--port 4321] [--out DIR | --no-out] [--no-preview]
       Live viewer: rebuilds on save and replays each asset's painting steps.
-  pxl review <art.px.js> <name> [name...] [--scale N]
+  pxl ref <image.png> [--colors N] [--scale N] [--ascii] [--out DIR]
+      Study a reference picture to draw in its style: finds its native pixel size, prints a
+      ready-to-paste pal()/ramps() block and a style brief (outline, light, shading, contrast),
+      and writes out/_ref/<name>.png (native size) + <name>.preview.png (gridded, to look at).
+  pxl review <art.px.js> <name> [name...] [--scale N] [--ref image.png]
       Write out/_preview/<name>.review.png: the asset without the grid on dark and light
       backdrops, in grayscale (values), as a silhouette, at true 1x/2x size, and its colors.
       Prints craft hints and color usage. Judge finished art with this, not the grid preview.
+      --ref also writes <name>.vs.png (art beside the reference) and prints how the styles match.
   pxl ascii <art.px.js> <name>
       Print an asset as palette keys with x/y rulers (anims: every frame).
   pxl list  <art.px.js>
@@ -36,6 +45,9 @@ interface Args {
   preview?: boolean;
   port?: number;
   hints?: boolean;
+  ref?: string;
+  colors?: number;
+  ascii?: boolean;
 }
 
 function parse(argv: string[]): Args {
@@ -54,6 +66,9 @@ function parse(argv: string[]): Args {
     else if (v === "--port") a.port = Number(val());
     else if (v === "--no-preview") a.preview = false;
     else if (v === "--no-hints") a.hints = false;
+    else if (v === "--ref") a.ref = val();
+    else if (v === "--colors") a.colors = Number(val());
+    else if (v === "--ascii") a.ascii = true;
     else if (v === "-h" || v === "--help") a.cmd = "help";
     else if (v.startsWith("--")) throw new PxError(`unknown flag ${v}\n\n${USAGE}`);
     else if (!a.cmd) a.cmd = v;
@@ -92,8 +107,23 @@ export async function main(argv: string[]): Promise<number> {
         else console.log(ascii(p.image(name), pal));
         return 0;
       }
+      case "ref": {
+        const r = analyzeRef(readPng(file), { colors: a.colors, scale: a.scale });
+        const name = basename(file).replace(/\.png$/i, ""), dir = join(outDir, "_ref");
+        writePng(join(dir, name + ".png"), r.img);
+        writePng(join(dir, name + ".preview.png"), preview(r.img));
+        console.log(`reference ${name}: ${r.img.w}x${r.img.h} native (1 art pixel = ${r.scale}x${r.scale} in the file)${r.bg !== undefined ? `, background ${toHex(r.bg)} removed` : ""}`);
+        console.log(`look at: ${join(dir, name + ".preview.png")}\n`);
+        console.log("// palette of the reference: paste into the art file\n" + r.code + "\n");
+        console.log("style brief: draw new art to these rules");
+        for (const l of r.brief) console.log("  - " + l);
+        console.log(`\ncheck your art against it: pxl review <art.px.js> <name> --ref ${a.file}`);
+        if (a.ascii) console.log("\n" + ascii(r.img, r.pal));
+        return 0;
+      }
       case "review": {
         if (!a.rest.length) throw new PxError("review needs an asset name: pxl review <file> <name>");
+        const ref = a.ref ? analyzeRef(readPng(resolve(a.ref)), { colors: a.colors }) : undefined;
         const p = loadProject(file);
         for (const name of a.rest) {
           const def = p.assets.get(name), sh = p.sheets.find((s) => s.name === name);
@@ -111,6 +141,12 @@ export async function main(argv: string[]): Promise<number> {
           const hints = def ? lintImage(img, pal) : [];
           for (const h of hints) console.log(`  hint: ${h}`);
           if (!hints.length) console.log("  no hints");
+          if (ref) {
+            const vs = join(outDir, "_preview", name + ".vs.png");
+            writePng(vs, versus(img, ref.img));
+            console.log(`  against the reference (art left, reference right) -> ${vs}`);
+            for (const l of compareStyle(img, ref)) console.log("    " + l);
+          }
         }
         return 0;
       }
@@ -137,4 +173,10 @@ export async function main(argv: string[]): Promise<number> {
     console.error("error: " + wrap(e).message);
     return 1;
   }
+}
+
+function readPng(path: string): Img {
+  let buf: Buffer;
+  try { buf = readFileSync(path); } catch { throw new PxError(`cannot read image '${path}'`); }
+  try { return decodePng(buf); } catch (e) { throw new PxError(`${path}: ${(e as Error).message}`); }
 }
