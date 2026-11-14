@@ -16,6 +16,12 @@ for people too. No runtime dependencies, no build step: just Node ≥ 22.18.
   <img src="docs/gallery/neon_noodle_3d.png" width="49%" alt="Neon noodle bar scene">
 </p>
 <p>
+  <img src="docs/gallery/night_rain.gif" width="100%" alt="Animated rainy night road with a silver coupe and its reflection, drawn with the car kit">
+</p>
+<p>
+  <img src="docs/gallery/car_lineup.png" width="100%" alt="Ten cars from the car kit: coupes, hatchbacks, sedan, wagon, wedge, kei car, front and rear views">
+</p>
+<p>
   <img src="docs/gallery/showcase_sprites.png" width="100%" alt="Sprites shaded with ramp, form and selout: apple, potion, coin, sword, shield, slime, fish, mushroom, angler">
 </p>
 <p>
@@ -98,6 +104,8 @@ pxl list  <art.px.js>            list assets, groups and sheets with source loca
   the art the way it will be seen.
 - **Style references**: `pxl ref picture.png` reads a reference image (native pixel size, keyed
   palette with ramps, outline / light / shading traits) and `pxl review --ref` checks new art against it.
+- **Cars**: `include("pxl:cars")` builds cars from a side profile (six bodies or your own, front/rear
+  three-quarter or side view); `wheel()` and `reflect()` ops for wheels and wet-road reflections.
 - **Sprites**: text grids, mirroring, auto-outline, palette-swap variants, flips/rotations, reusable
   `_parts`, `stamp`.
 - **Primitives and brushes**: rects, lines, circles, polygons, gradients, dithering, noise, a built-in

@@ -4,6 +4,7 @@ import type { Palette, Resolved } from "./palette.ts";
 import { PxError } from "./errors.ts";
 import { glyph, lineWidth } from "./font.ts";
 import { applyForm } from "./form.ts";
+import type { ReflectOpts, WheelOpts } from "./model.ts";
 import type { BumpOpts, FormOpts, LampOpts, PlaceOpts, ScatterOpts, TextOpts, Timeline, TilemapOpts, WireOpts } from "./model.ts";
 import { bump, dirOf, setNormal } from "./normals.ts";
 import { bayer, colorList, gridRows, hash, inPoly, polyBounds, type Region, regionPred, rng } from "./util.ts";
@@ -252,6 +253,84 @@ export class Canvas {
     const inside = inPoly(flat), b = polyBounds(flat);
     for (let y = Math.floor(b.y0); y < Math.ceil(b.y1); y++)
       for (let x = Math.floor(b.x0); x < Math.ceil(b.x1); x++) if (inside(x, y)) this.plot(x, y, col);
+  }
+
+  /**
+   * Car wheel: tire, rim lip, optional dished barrel, spokes and hub. `rx` < r turns it away
+   * from the viewer (3/4 views), `tilt` cambers it, `depth` shows tread behind the face.
+   */
+  wheel(cx: number, cy: number, r: number, o: WheelOpts): void {
+    if (!o || typeof o !== "object" || !o.tire || !o.lip) throw new PxError('wheel needs colors: wheel(cx, cy, r, { tire: "k", lip: "o", spoke: "d", gap: "a" })');
+    if (!(r >= 2)) throw new PxError(`wheel r must be >= 2, got ${r}`);
+    const rx = o.rx ?? r, wall = Math.max(1, o.wall ?? Math.round(r / 4)), lipW = Math.max(0, o.lipW ?? 1);
+    const tilt = o.tilt ?? 0, depth = Math.round(o.depth ?? 0), dish = o.dish ?? 0;
+    const n = Math.max(0, Math.floor(o.spokes ?? 5)), spokeW = o.spokeW ?? Math.max(1, r / 4), ang = ((o.angle ?? 0) * Math.PI) / 180;
+    const tire = this.color(o.tire), lip = this.color(o.lip), barrel = this.color(o.barrel ?? o.lip);
+    const spoke = this.color(o.spoke ?? o.lip), gap = this.color(o.gap ?? o.tire), hub = this.color(o.hub ?? o.spoke ?? o.lip);
+    const k = rx / r; // horizontal squash of everything round
+    const lean = (y: number) => (tilt * -(y - cy)) / r;
+    // Normalised radius of pixel (x, y) for an ellipse of vertical radius R, shifted by sx.
+    const rad = (x: number, y: number, R: number, sx = 0) => Math.hypot((x - cx - sx - lean(y)) / (R * k + 0.5 * Math.min(1, k * 2)), (y - cy) / (R + 0.5));
+    const rimR = r - wall, faceR = Math.max(1, rimR - lipW - Math.abs(dish)), faceX = dish * k;
+    const x0 = Math.floor(cx - rx - Math.abs(tilt) - Math.abs(depth)) - 1, x1 = Math.ceil(cx + rx + Math.abs(tilt) + Math.abs(depth)) + 1;
+    for (let y = Math.floor(cy - r) - 1; y <= Math.ceil(cy + r) + 1; y++)
+      for (let x = x0; x <= x1; x++) {
+        let c: Resolved = null;
+        // Tread: the tire swept back along its axle.
+        for (let s = Math.sign(depth); Math.abs(s) <= Math.abs(depth) && depth; s += Math.sign(depth)) if (rad(x, y, r, s) <= 1) { c = tire; break; }
+        if (rad(x, y, r) <= 1) c = tire;
+        if (rimR >= 1 && rad(x, y, rimR) <= 1) {
+          c = lip;
+          const inner = rimR - lipW;
+          if (inner >= 1 && rad(x, y, inner) <= 1) {
+            c = barrel;
+            const fr = rad(x, y, faceR, faceX);
+            if (fr <= 1) {
+              // Spokes in the wheel's own plane: undo the squash before measuring angles.
+              const u = (x - cx - faceX - lean(y)) / k, v = y - cy, d = Math.hypot(u, v);
+              if (d <= Math.max(1, faceR * 0.22)) c = hub;
+              else if (!n) c = spoke;
+              else {
+                const a = Math.atan2(v, u) - ang, step = (Math.PI * 2) / n;
+                const off = Math.abs(((a % step) + step + step / 2) % step - step / 2);
+                c = Math.sin(off) * d <= (spokeW / 2) * (0.6 + 0.4 * (d / faceR)) && off < Math.PI / 2 ? spoke : gap;
+                if (fr > 1 - 1 / (faceR + 0.5) && dish) c = spoke; // face edge ring ties the spokes together
+              }
+            }
+          }
+        }
+        if (c !== null) this.plot(x, y, c);
+      }
+  }
+
+  /**
+   * Mirror what is drawn above the line `y` onto the area below it: wet roads, water, polished
+   * floors. Stays in the palette: reflected colors step darker along the ramps.
+   */
+  reflect(y: number, o: ReflectOpts = {}): void {
+    y = Math.floor(y);
+    const H = this.img.h - this.oy, W = this.img.w - this.ox;
+    const h = Math.min(o.h ?? H - y, H - y), squash = o.squash ?? 1;
+    if (!(squash > 0)) throw new PxError(`reflect squash must be > 0, got ${squash}`);
+    const steps = Math.max(0, Math.floor(o.shade ?? 1)), down = steps ? this.pal.stepMap(-1) : undefined;
+    const d0 = o.density ?? 1, d1 = o.fade ?? d0;
+    const ok = this.maskAt(o.on), skip = o.skip ? this.colorTest(o.skip) : undefined;
+    const [sx, sw] = o.span ?? [-this.ox, this.img.w];
+    const src = this.img.copy();
+    for (let dy = 0; dy < h; dy++) {
+      const fy = y - 1 - Math.floor(dy / squash);
+      if (fy < -this.oy) break;
+      const t = h > 1 ? dy / (h - 1) : 0, dens = d0 + (d1 - d0) * t;
+      const shift = o.ripple ? Math.round(Math.sin((dy * 0.9 + (o.phase ?? 0) * Math.PI * 2)) * o.ripple * (0.3 + 0.7 * t)) : 0;
+      for (let x = Math.max(sx, -this.ox); x < Math.min(sx + sw, W); x++) {
+        let c = src.get(this.ox + x - shift, this.oy + fy);
+        if (c === TRANSPARENT || (skip && skip(c))) continue;
+        if (dens < 1 && bayer(x, y + dy) >= dens) continue;
+        if (!ok(x, y + dy)) continue;
+        if (down) for (let s = 0; s < steps; s++) c = down.get(c) ?? c;
+        this.plot(x, y + dy, c);
+      }
+    }
   }
 
   /** 4-connected flood fill of the region containing (x, y). */
@@ -620,6 +699,7 @@ export const OPS = [
   "px", "rect", "box", "line", "hline", "vline", "ellipse", "circ", "ring", "poly", "curve", "blob", "fill",
   "dither", "grad", "noise", "recolor", "shade", "light", "form",
   "stamp", "tile", "pattern", "tilemap", "scatter", "grid", "wire", "text", "lamp", "bump", "normals",
+  "wheel", "reflect",
 ] as const;
 export type OpName = (typeof OPS)[number];
 

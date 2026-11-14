@@ -18,9 +18,11 @@
     "scripts",
     "types",
     "examples/*.px.js",
+    "kits",
     "SKILL.md",
     "reference.md",
-    "lighting.md"
+    "lighting.md",
+    "cars.md"
   ],
   "engines": {
     "node": ">=22.18"

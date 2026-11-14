@@ -50,6 +50,14 @@ declare global {
     block?: number; smooth?: boolean; emit?: string; shape?: "round" | "diamond";
     relief?: number; skyDir?: [number, number];
   }
+  interface PxWheel {
+    rx?: number; tilt?: number; depth?: number; wall?: number; lipW?: number; dish?: number; spokes?: number; spokeW?: number; angle?: number;
+    tire: PxColor; lip: PxColor; barrel?: PxColor; spoke?: PxColor; gap?: PxColor; hub?: PxColor;
+  }
+  interface PxReflect {
+    h?: number; squash?: number; shade?: number; density?: number; fade?: number; on?: string; skip?: string;
+    ripple?: number; phase?: number; span?: [number, number];
+  }
   interface PxGlow { where?: PxRegion; r?: number; strength?: number; color?: PxColor; bands?: number; ramp?: number }
 
   interface PxCanvas {
@@ -75,6 +83,8 @@ declare global {
     blob(points: number[], c: PxColor): void;
     form(opts?: PxForm): void;
     fill(x: number, y: number, c: PxColor): void;
+    wheel(cx: number, cy: number, r: number, opts: PxWheel): void;
+    reflect(y: number, opts?: PxReflect): void;
     dither(x: number, y: number, w: number, h: number, c1: PxColor, c2: PxColor, density?: number): void;
     grad(x: number, y: number, w: number, h: number, colors: string | string[], dir?: "v" | "h", soft?: number): void;
     noise(x: number, y: number, w: number, h: number, colors: string | string[], density?: number, seed?: number, on?: string): void;
@@ -128,6 +138,8 @@ declare global {
   function blob(points: number[], c: PxColor): PxOp;
   function form(opts?: PxForm): PxOp;
   function fill(x: number, y: number, c: PxColor): PxOp;
+  function wheel(cx: number, cy: number, r: number, opts: PxWheel): PxOp;
+  function reflect(y: number, opts?: PxReflect): PxOp;
   function dither(x: number, y: number, w: number, h: number, c1: PxColor, c2: PxColor, density?: number): PxOp;
   function grad(x: number, y: number, w: number, h: number, colors: string | string[], dir?: "v" | "h", soft?: number): PxOp;
   function noise(x: number, y: number, w: number, h: number, colors: string | string[], density?: number, seed?: number, on?: string): PxOp;

@@ -17,7 +17,7 @@ test("png: decode round-trips what encode writes (indexed and RGBA)", () => {
   const big = img.scale(1);
   for (let i = 0; i < 300; i++) big.data[i] = ((i * 2654435761) | 255) >>> 0; // > 256 colors forces RGBA
   assert.deepEqual([...decodePng(encodePng(big)).data], [...big.data]);
-  assert.throws(() => decodePng(Buffer.from("not a png")), /not a PNG/);
+  assert.throws(() => decodePng(Buffer.from("not a png")), /not a PNG or GIF/);
 });
 
 test("ref: finds the native scale of an upscaled image and removes a flat background", () => {

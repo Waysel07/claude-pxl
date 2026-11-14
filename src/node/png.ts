@@ -57,7 +57,7 @@ export function encodePng(img: Img): Buffer {
  */
 export function decodePng(buf: Buffer): Img {
   const SIG = [137, 80, 78, 71, 13, 10, 26, 10];
-  if (buf.length < 8 || SIG.some((b, i) => buf[i] !== b)) throw new Error("not a PNG file (reference images must be .png)");
+  if (buf.length < 8 || SIG.some((b, i) => buf[i] !== b)) throw new Error("not a PNG or GIF file (reference images must be .png or .gif)");
   let w = 0, h = 0, depth = 8, type = 6, interlace = 0;
   let plte: Buffer | undefined, trns: Buffer | undefined;
   const idat: Buffer[] = [];

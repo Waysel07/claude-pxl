@@ -1,7 +1,9 @@
 // Loads art files (.js or .ts) into a Project by running them in a vm sandbox whose globals
 // are the DSL. Each load gets a fresh context, so reloading after an edit is clean.
 import { readFileSync } from "node:fs";
-import { dirname, isAbsolute, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { existsSync, readdirSync } from "node:fs";
 import * as vm from "node:vm";
 import { stripTypeScriptTypes } from "node:module";
 import { PxError, wrap } from "../core/errors.ts";
@@ -34,7 +36,7 @@ export function loadProject(file: string, opts: ProjectOptions = {}): Project {
       stack.pop();
     }
   };
-  p.includeHook = (path) => run(isAbsolute(path) ? path : resolve(dirname(stack[stack.length - 1]), path));
+  p.includeHook = (path) => run(kitPath(path) ?? (isAbsolute(path) ? path : resolve(dirname(stack[stack.length - 1]), path)));
   run(file);
   return p;
 }
@@ -44,6 +46,13 @@ export function loadSource(src: string, name = "art.px.js", opts: ProjectOptions
   const p = new Project(opts);
   const ctx = vm.createContext({ ...p.env(), console });
   p.addFile(name);
+  // Strings have no folder to include from, but the built-in kits ("pxl:cars") still work.
+  p.includeHook = (path) => {
+    const kit = kitPath(path);
+    if (!kit) throw new PxError(`include("${path}") is not available here (only built-in kits like "pxl:cars")`);
+    p.addFile(kit);
+    vm.runInContext(readFileSync(kit, "utf8"), ctx, { filename: kit });
+  };
   try {
     vm.runInContext(compile(src, name), ctx, { filename: name });
   } catch (e) {
@@ -65,4 +74,18 @@ function syntaxAware(e: unknown, file: string, p: Project): PxError {
 
 function escape(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+const KITS = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "kits");
+
+/** include("pxl:cars") -> the built-in kit file; undefined for ordinary paths. */
+function kitPath(path: string): string | undefined {
+  if (!path.startsWith("pxl:")) return undefined;
+  const name = path.slice(4), file = join(KITS, name + ".px.js");
+  if (!/^[a-z0-9_-]+$/.test(name) || !existsSync(file)) {
+    let have: string[] = [];
+    try { have = readdirSync(KITS).filter((f) => f.endsWith(".px.js")).map((f) => "pxl:" + f.slice(0, -6)); } catch { /* no kits folder */ }
+    throw new PxError(`unknown kit "${path}" (have: ${have.join(", ") || "none"})`);
+  }
+  return file;
 }

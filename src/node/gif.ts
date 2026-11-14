@@ -2,7 +2,7 @@
 // colors (lit scenes) are reduced by median cut. Fully transparent pixels become the
 // transparent index. Identical consecutive frames are merged.
 import { TRANSPARENT } from "../core/color.ts";
-import type { Img } from "../core/image.ts";
+import { Img } from "../core/image.ts";
 
 export interface GifFrame {
   img: Img;
@@ -200,4 +200,98 @@ function nearest(pal: number[], rgb: number): number {
     if (d < bd) { bd = d; best = i; }
   }
   return best;
+}
+
+/**
+ * Decode a GIF into full frames (each composited onto the previous as the format's disposal
+ * rules say). Pixels are opaque or fully transparent.
+ */
+export function decodeGif(buf: Buffer, maxFrames = 600): { img: Img; ms: number }[] {
+  const sig = buf.toString("ascii", 0, 6);
+  if (sig !== "GIF89a" && sig !== "GIF87a") throw new Error("not a GIF file");
+  const W = buf.readUInt16LE(6), H = buf.readUInt16LE(8), flags = buf[10];
+  let p = 13;
+  const table = (n: number): number[] => {
+    const t: number[] = [];
+    for (let i = 0; i < n; i++) t.push(((buf[p + i * 3] << 24) | (buf[p + i * 3 + 1] << 16) | (buf[p + i * 3 + 2] << 8) | 255) >>> 0);
+    p += n * 3;
+    return t;
+  };
+  const global = flags & 0x80 ? table(2 << (flags & 7)) : undefined;
+  const frames: { img: Img; ms: number }[] = [];
+  let canvas = new Img(W, H), delay = 100, transp = -1, dispose = 0;
+  const blocks = (): Buffer => {
+    const parts: Buffer[] = [];
+    for (;;) {
+      const n = buf[p++];
+      if (!n || p > buf.length) break;
+      parts.push(buf.subarray(p, p + n));
+      p += n;
+    }
+    return Buffer.concat(parts);
+  };
+  while (p < buf.length && frames.length < maxFrames) {
+    const b = buf[p++];
+    if (b === 0x3b) break;
+    if (b === 0x21) {
+      const label = buf[p++];
+      if (label === 0xf9) {
+        const f = buf[p + 1];
+        dispose = (f >> 2) & 7;
+        delay = buf.readUInt16LE(p + 2) * 10 || 100;
+        transp = f & 1 ? buf[p + 4] : -1;
+      }
+      blocks();
+      continue;
+    }
+    if (b !== 0x2c) throw new Error("GIF data is damaged");
+    const x0 = buf.readUInt16LE(p), y0 = buf.readUInt16LE(p + 2), w = buf.readUInt16LE(p + 4), h = buf.readUInt16LE(p + 6), lf = buf[p + 8];
+    p += 9;
+    const pal = lf & 0x80 ? table(2 << (lf & 7)) : global;
+    if (!pal) throw new Error("GIF frame has no color table");
+    const minCode = buf[p++], data = blocks();
+    const idx = unlzw(data, minCode, w * h);
+    const before = dispose === 3 ? canvas.copy() : undefined;
+    const rows: number[] = [];
+    if (lf & 0x40) for (const [start, step] of [[0, 8], [4, 8], [2, 4], [1, 2]]) for (let y = start; y < h; y += step) rows.push(y);
+    else for (let y = 0; y < h; y++) rows.push(y);
+    rows.forEach((y, r) => {
+      for (let x = 0; x < w; x++) {
+        const k = idx[r * w + x];
+        if (k !== transp && k < pal.length) canvas.set(x0 + x, y0 + y, pal[k]);
+      }
+    });
+    frames.push({ img: canvas.copy(), ms: delay });
+    if (dispose === 2) { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) canvas.set(x0 + x, y0 + y, 0); }
+    else if (before) canvas = before;
+    delay = 100; transp = -1; dispose = 0;
+  }
+  if (!frames.length) throw new Error("GIF has no frames");
+  return frames;
+}
+
+function unlzw(data: Buffer, minCode: number, n: number): Uint8Array {
+  const out = new Uint8Array(n), clear = 1 << minCode, end = clear + 1;
+  const prefix = new Int32Array(4096), suffix = new Uint8Array(4096), stack = new Uint8Array(4097);
+  let size = minCode + 1, next = end + 1, bits = 0, acc = 0, prev = -1, first = 0, o = 0, i = 0;
+  for (let k = 0; k < clear; k++) suffix[k] = k;
+  while (o < n) {
+    while (bits < size && i < data.length) { acc |= data[i++] << bits; bits += 8; }
+    if (bits < size) break;
+    let code = acc & ((1 << size) - 1);
+    acc >>= size; bits -= size;
+    if (code === clear) { size = minCode + 1; next = end + 1; prev = -1; continue; }
+    if (code === end) break;
+    if (prev < 0) { out[o++] = code; prev = code; first = code; continue; }
+    const inCode = code;
+    let sp = 0;
+    if (code >= next) { stack[sp++] = first; code = prev; }
+    while (code >= clear) { stack[sp++] = suffix[code]; code = prefix[code]; }
+    first = suffix[code];
+    stack[sp++] = first;
+    if (next < 4096) { prefix[next] = prev; suffix[next] = first; next++; if (next === 1 << size && size < 12) size++; }
+    prev = inCode;
+    while (sp && o < n) out[o++] = stack[--sp];
+  }
+  return out;
 }

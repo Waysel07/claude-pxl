@@ -6,6 +6,7 @@ import { ascii, packSheet, preview, review, versus } from "../core/render.ts";
 import { analyzeRef, compareStyle } from "../core/ref.ts";
 import type { Img } from "../core/image.ts";
 import { decodePng } from "./png.ts";
+import { decodeGif } from "./gif.ts";
 import { lintImage } from "../core/lint.ts";
 import { toHex } from "../core/color.ts";
 import { loadProject } from "./load.ts";
@@ -19,7 +20,7 @@ const USAGE = `pxl — pixel-art DSL
       previews (out/_preview; animated assets also get a .gif).
   pxl serve <art.px.js> [--port 4321] [--out DIR | --no-out] [--no-preview]
       Live viewer: rebuilds on save and replays each asset's painting steps.
-  pxl ref <image.png> [--colors N] [--scale N] [--ascii] [--out DIR]
+  pxl ref <image.png|gif> [--colors N] [--scale N] [--crop x,y,w,h] [--frame N] [--ascii] [--out DIR]
       Study a reference picture to draw in its style: finds its native pixel size, prints a
       ready-to-paste pal()/ramps() block and a style brief (outline, light, shading, contrast),
       and writes out/_ref/<name>.png (native size) + <name>.preview.png (gridded, to look at).
@@ -48,6 +49,8 @@ interface Args {
   ref?: string;
   colors?: number;
   ascii?: boolean;
+  crop?: number[];
+  frame?: number;
 }
 
 function parse(argv: string[]): Args {
@@ -69,6 +72,11 @@ function parse(argv: string[]): Args {
     else if (v === "--ref") a.ref = val();
     else if (v === "--colors") a.colors = Number(val());
     else if (v === "--ascii") a.ascii = true;
+    else if (v === "--frame") a.frame = Number(val());
+    else if (v === "--crop") {
+      a.crop = val().split(",").map(Number);
+      if (a.crop.length !== 4 || a.crop.some((n) => !Number.isInteger(n) || n < 0) || !a.crop[2] || !a.crop[3]) throw new PxError("--crop needs x,y,w,h in image pixels");
+    }
     else if (v === "-h" || v === "--help") a.cmd = "help";
     else if (v.startsWith("--")) throw new PxError(`unknown flag ${v}\n\n${USAGE}`);
     else if (!a.cmd) a.cmd = v;
@@ -108,8 +116,8 @@ export async function main(argv: string[]): Promise<number> {
         return 0;
       }
       case "ref": {
-        const r = analyzeRef(readPng(file), { colors: a.colors, scale: a.scale });
-        const name = basename(file).replace(/\.png$/i, ""), dir = join(outDir, "_ref");
+        const r = analyzeRef(readImage(file, a), { colors: a.colors, scale: a.scale });
+        const name = basename(file).replace(/\.(png|gif)$/i, ""), dir = join(outDir, "_ref");
         writePng(join(dir, name + ".png"), r.img);
         writePng(join(dir, name + ".preview.png"), preview(r.img));
         console.log(`reference ${name}: ${r.img.w}x${r.img.h} native (1 art pixel = ${r.scale}x${r.scale} in the file)${r.bg !== undefined ? `, background ${toHex(r.bg)} removed` : ""}`);
@@ -123,7 +131,7 @@ export async function main(argv: string[]): Promise<number> {
       }
       case "review": {
         if (!a.rest.length) throw new PxError("review needs an asset name: pxl review <file> <name>");
-        const ref = a.ref ? analyzeRef(readPng(resolve(a.ref)), { colors: a.colors }) : undefined;
+        const ref = a.ref ? analyzeRef(readImage(resolve(a.ref), a), { colors: a.colors }) : undefined;
         const p = loadProject(file);
         for (const name of a.rest) {
           const def = p.assets.get(name), sh = p.sheets.find((s) => s.name === name);
@@ -175,8 +183,23 @@ export async function main(argv: string[]): Promise<number> {
   }
 }
 
-function readPng(path: string): Img {
+/** Read a PNG or GIF (one frame, --frame N, default the first), optionally cropped with --crop. */
+function readImage(path: string, a: Args): Img {
   let buf: Buffer;
   try { buf = readFileSync(path); } catch { throw new PxError(`cannot read image '${path}'`); }
-  try { return decodePng(buf); } catch (e) { throw new PxError(`${path}: ${(e as Error).message}`); }
+  let img: Img;
+  try {
+    if (buf.toString("ascii", 0, 3) === "GIF") {
+      const frames = decodeGif(buf);
+      const n = a.frame ?? 0;
+      if (!frames[n]) throw new Error(`has ${frames.length} frames; --frame must be 0..${frames.length - 1}`);
+      img = frames[n].img;
+    } else img = decodePng(buf);
+  } catch (e) { throw new PxError(`${path}: ${(e as Error).message.replace("must be .png", "must be .png or .gif")}`); }
+  if (a.crop) {
+    const [x, y, w, h] = a.crop;
+    if (x + w > img.w || y + h > img.h) throw new PxError(`--crop ${a.crop.join(",")} is outside the ${img.w}x${img.h} image`);
+    img = img.sub(x, y, w, h);
+  }
+  return img;
 }

@@ -141,18 +141,26 @@ export function review(img: Img, scale = Math.max(1, Math.min(10, Math.floor(224
   return o;
 }
 
-/** Art next to a reference, each at a whole-number scale of similar height, on dark and light backdrops. */
+/**
+ * Art and a reference, each at a whole-number scale, on dark and light backdrops. Wide images
+ * are stacked (art above the reference), others sit side by side (art left).
+ */
 export function versus(art: Img, ref: Img, target = 224): Img {
-  const sc = (i: Img) => Math.max(1, Math.round(target / Math.max(i.w, i.h)));
+  const wide = Math.max(art.w, ref.w) > Math.max(art.h, ref.h) * 1.6;
+  const sc = (i: Img) => (wide ? Math.max(1, Math.min(8, Math.round(560 / i.w))) : Math.max(1, Math.round(target / Math.max(i.w, i.h))));
   const a = art.scale(sc(art)), r = ref.scale(sc(ref)), pad = 8;
   const backs = [pack(0x24, 0x22, 0x2e), pack(0xe9, 0xe4, 0xd8)];
-  const rowH = Math.max(a.h, r.h), W = pad * 3 + a.w + r.w, H = pad + backs.length * (rowH + pad);
+  const cw = Math.max(a.w, r.w), ch = Math.max(a.h, r.h);
+  const W = wide ? pad + backs.length * (cw + pad) : pad * 3 + a.w + r.w;
+  const H = wide ? pad * 3 + a.h + r.h : pad + backs.length * (ch + pad);
   const o = new Img(W, H).fill(pack(0x50, 0x50, 0x58));
   backs.forEach((bk, k) => {
-    const y0 = pad + k * (rowH + pad);
-    for (const [im, x0] of [[a, pad], [r, pad * 2 + a.w]] as [Img, number][]) {
-      for (let y = 0; y < rowH; y++) for (let x = 0; x < im.w; x++) o.set(x0 + x, y0 + y, bk);
-      o.blit(im, x0, y0 + Math.floor((rowH - im.h) / 2));
+    const cells: [Img, number, number, number, number][] = wide
+      ? [[a, pad + k * (cw + pad), pad, cw, a.h], [r, pad + k * (cw + pad), pad * 2 + a.h, cw, r.h]]
+      : [[a, pad, pad + k * (ch + pad), a.w, ch], [r, pad * 2 + a.w, pad + k * (ch + pad), r.w, ch]];
+    for (const [im, x0, y0, w, h] of cells) {
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) o.set(x0 + x, y0 + y, bk);
+      o.blit(im, x0 + Math.floor((w - im.w) / 2), y0 + Math.floor((h - im.h) / 2));
     }
   });
   return o;

@@ -93,6 +93,15 @@ Post-processing order: mirror → swap → flip → rot → form → outline (+ 
 | `wire(x0, y0, x1, y1, sag, c, { hang?, every = 6, start?, ...placement })` | sagging cable; `hang` stamps an asset/group under it every `every` px (string lights) |
 | `text(x, y, "str", c, { scale = 1, gap = 1, lead = 1, align: "l"\|"c"\|"r", shadow? })` | built-in 3×5 font: A-Z 0-9 and common punctuation, `\n` for lines |
 
+### Wheels and reflections
+| Op | Notes |
+|---|---|
+| `wheel(cx, cy, r, { tire, lip, spoke?, gap?, barrel?, hub?, rx?, tilt?, depth?, wall?, lipW?, dish?, spokes = 5, spokeW?, angle? })` | car wheel: tire ring, rim lip, spokes over dark gaps, hub. `rx` < r turns it away (3/4 views), `tilt` = camber, `depth` = visible tread toward +x, `dish` = spoke face set back inside the rim (shows the `barrel`), `angle` in degrees spins it (animate with `c.phase * 360`). |
+| `reflect(y, { h?, squash = 1, shade = 1, density = 1, fade?, ripple?, phase?, on?, skip?, span? })` | mirror what is above line `y` below it, stepped `shade` ramp steps darker: wet roads, water, polished floors. `fade` = density at the bottom, `skip` = keys that don't reflect (sky, road), `span: [x, w]` limits it, `ripple` px + `phase` animate it. |
+
+`include("pxl:cars")` loads the built-in car kit (`car(name, { body, paint, glass, trim, metal, ... })`):
+see [cars.md](cars.md).
+
 ### Texture and tone
 | Op | Notes |
 |---|---|

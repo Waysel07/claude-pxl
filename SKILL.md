@@ -98,6 +98,9 @@ sheet("chars", ["slime*", "chest"], { pad: 1 })
   Give glowing things their own keys so nothing else lights up, or limit it with `where`.
 
 Full API with every option: [reference.md](reference.md).
+Cars and other road vehicles: read [cars.md](cars.md) first. `include("pxl:cars")` gives
+`car(name, { body, paint, ... })` (coupe, hatch, sedan, wagon, wedge, kei or your own profile; front or
+rear three-quarter or side view), plus the `wheel()` and `reflect()` ops for wheels and wet roads.
 Dynamic lighting (lamps, light blocked by solid layers, sky light, Terraria-style): read
 [lighting.md](lighting.md) only when a scene needs lights.
 

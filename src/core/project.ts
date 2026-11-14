@@ -53,6 +53,8 @@ export const SIGNATURES: Record<string, string> = {
   normals: "x:n y:n str:s",
   lighting: "?opts:o",
   glow: "keys:S ?opts:o",
+  wheel: "cx:n cy:n r:n opts:o",
+  reflect: "y:n ?opts:o",
 };
 
 const FORM_OPTS = ["from", "shape", "w", "depth", "hi", "lo", "bias", "soft", "bleed", "on", "where"];
@@ -62,6 +64,8 @@ const OP_OPTS: Record<string, string[]> = {
   bump: ["w", "depth", "on", "where"],
   lighting: ["cell", "ambient", "ambientColor", "sky", "skyColor", "skyReach", "block", "smooth", "emit", "shape", "relief", "skyDir"],
   glow: ["where", "r", "strength", "color", "bands", "ramp"],
+  wheel: ["rx", "tilt", "depth", "wall", "lipW", "dish", "spokes", "spokeW", "angle", "tire", "lip", "barrel", "spoke", "gap", "hub"],
+  reflect: ["h", "squash", "shade", "density", "fade", "on", "skip", "ripple", "phase", "span"],
   form: FORM_OPTS,
 };
 
