@@ -272,3 +272,56 @@ export function isOp(v: unknown): v is Op {
 export function isLayer(v: unknown): v is Layer {
   return typeof v === "object" && v !== null && (v as Layer).__layer === true;
 }
+
+/** Options of wheel(): a car wheel seen side-on or turned (3/4 views). */
+export interface WheelOpts {
+  /** Horizontal radius (default r = side view; smaller = wheel turned away, as in a 3/4 view). */
+  rx?: number;
+  /** Camber: the top leans this many px in +x (negative = -x), the bottom the other way. */
+  tilt?: number;
+  /** Visible tread: the tire extends this many px toward +x (negative = -x) behind the face. */
+  depth?: number;
+  /** Tire thickness in px (default r / 4, at least 1). */
+  wall?: number;
+  /** Rim lip width in px (default 1). */
+  lipW?: number;
+  /** Deep dish: the spoke face is this many px smaller than the rim and sits toward +x (negative = -x). */
+  dish?: number;
+  /** Number of spokes (default 5; 0 = solid disc). */
+  spokes?: number;
+  /** Spoke width in px at the rim (default r / 4). */
+  spokeW?: number;
+  /** Rotation in degrees (animate it to spin the wheel). */
+  angle?: number;
+  /** Colors: tire, rim lip, barrel (inside of a dished rim), spokes, the gaps between them, hub. */
+  tire: string;
+  lip: string;
+  barrel?: string;
+  spoke?: string;
+  gap?: string;
+  hub?: string;
+}
+
+/** Options of reflect(): a mirror image below a ground line (wet roads, water, polished floors). */
+export interface ReflectOpts {
+  /** Height of the reflection in px (default: to the bottom of the canvas). */
+  h?: number;
+  /** Vertical squash: 1 = full height mirror, 0.5 = half as tall (default 1). */
+  squash?: number;
+  /** Ramp steps darker (default 1). */
+  shade?: number;
+  /** 0..1: share of pixels drawn at the top of the reflection (ordered dither; default 1). */
+  density?: number;
+  /** 0..1: density at the bottom edge, fading from `density` (default = density). */
+  fade?: number;
+  /** Only draw onto these keys ("*" any opaque; default: anywhere, transparent included). */
+  on?: string;
+  /** Keys that do not reflect (sky, background). */
+  skip?: string;
+  /** Ripple: rows shift sideways by up to this many px (default 0). */
+  ripple?: number;
+  /** Ripple phase 0..1 (animate it: c.phase). */
+  phase?: number;
+  /** Only reflect this x range [x, w]. */
+  span?: [number, number];
+}

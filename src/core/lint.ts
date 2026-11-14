@@ -32,7 +32,8 @@ export function lintImage(img: Img, pal: Palette): string[] {
       if (alone) { strays++; if (stray.length < 6) stray.push(`${x},${y}`); }
     }
   // Tiny sprites (brush parts, small props) are mostly single pixels by nature: only judge real surfaces.
-  if (opaque >= 150 && strays >= Math.max(6, Math.ceil(opaque * 0.03)))
+  // ... and whole scenes carry rain, stars and dither on purpose.
+  if (opaque >= 150 && opaque <= 8000 && strays >= Math.max(6, Math.ceil(opaque * 0.03)))
     out.push(`${strays} stray single pixels (${stray.join(" ")}${strays > stray.length ? " …" : ""}): merge them into clusters or remove them`);
 
   // Colors too close to tell apart only add noise.

@@ -20,6 +20,8 @@ const shots: [string, string, number][] = [
   ["neon_noodle_3d.px.js", "neon_noodle_3d", 576],
   ["cave.px.js", "cave", 576],
   ["showcase.px.js", "showcase_sprites", 792],
+  ["cars.px.js", "night_rain", 780],
+  ["cars.px.js", "car_lineup", 680],
   ["no_magic.px.js", "cat", 192],
   ["no_magic.px.js", "frog", 192],
   ["no_magic.px.js", "clock", 192],
