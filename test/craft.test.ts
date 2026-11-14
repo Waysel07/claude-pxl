@@ -11,7 +11,7 @@ import { loadSource } from "../src/node/load.ts";
 import { writeOutputs } from "../src/node/output.ts";
 import { PAL, art, failure } from "./helpers.ts";
 
-const eq = assert.equal;
+const eq = (a: unknown, b: unknown, msg?: string) => assert.equal(a, b, msg);
 const RAMP = 'pal({ k: "#1b1630" }); ramp("12345", "#5aa64b"); ';
 
 test("oklch round-trips and stays in gamut", () => {
