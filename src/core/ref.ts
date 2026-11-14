@@ -6,7 +6,7 @@ import { Img } from "./image.ts";
 import { Palette } from "./palette.ts";
 
 export interface RefOpts {
-  /** Most colors to keep (default 24); busier images are reduced to their main colors. */
+  /** Most colors to keep (default 32); busier images are reduced to their main colors. */
   colors?: number;
   /** Size of one art pixel in image pixels; detected when omitted. */
   scale?: number;
@@ -265,7 +265,7 @@ export function analyzeRef(src: Img, o: RefOpts = {}): RefResult {
   if (!(Number.isInteger(scale) && scale >= 1)) throw new Error(`scale must be a whole number >= 1, got ${o.scale}`);
   const img = downscale(src, scale);
   const bg = dropBackground(img);
-  const unique = reduce(img, Math.max(2, Math.floor(o.colors ?? 24)));
+  const unique = reduce(img, Math.max(2, Math.floor(o.colors ?? 32)));
 
   const count = new Map<Color, number>();
   for (const c of img.data) if (c !== TRANSPARENT) count.set(c, (count.get(c) ?? 0) + 1);
@@ -321,7 +321,7 @@ export function describe(s: Style, unique: number, kept: number, hasDark: boolea
   const out: string[] = [];
   out.push(`size: subject is ${s.w}x${s.h} px at native scale: draw new art of the same kind at about this size`);
   out.push(unique > kept
-    ? `colors: ${unique} in the image, reduced to its ${kept} main ones (not clean pixel art, or anti-aliased): stay within these`
+    ? `colors: ${unique} in the image, reduced to its ${kept} main ones${unique > 64 ? " (not clean pixel art, or anti-aliased)" : ""}: stay within these`
     : `colors: ${kept}, about ${s.shades.toFixed(1)} shades per material: use only this palette, no extra shades`);
   if (s.outline === "dark") out.push(`outline: dark line all round (${Math.round(s.outlineShare * 100)}% of the edge): use outline: "k"${hasDark ? "" : " with the darkest key"}, no selout`);
   else if (s.outline === "selective") out.push(`outline: selective (${Math.round(s.outlineShare * 100)}% of the edge is dark, the rest takes the fill's own shade): use outline: "k", selout: true`);

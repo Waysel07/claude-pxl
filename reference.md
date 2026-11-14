@@ -236,7 +236,7 @@ node <pxl>/bin/pxl.js list  <file>
 ```
 
 `ref` studies a reference picture (PNG, any upscale): it detects the native pixel size, removes a
-flat background, reduces busy images to `--colors` main colors (default 24), and prints a
+flat background, reduces busy images to `--colors` main colors (default 32), and prints a
 `pal()`/`ramps()` block plus a style brief (outline, light, dithering, hue shift, contrast, size).
 It writes `out/_ref/<name>.png` (native) and `<name>.preview.png`. `review --ref` adds
 `_preview/<name>.vs.png` (art beside the reference) and `ok`/`differs` lines per trait.
